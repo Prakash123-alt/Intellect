@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Intellect AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b0d1a;
+            color: #e2e8f0;
+            min-height: 100vh;
+        }
+
+        /* NAVBAR */
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 24px;
+            border-bottom: 1px solid #1e2235;
+            position: sticky;
+            top: 0;
+            background-color: #0b0d1a;
+            z-index: 100;
+        }
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #fff;
+        }
+        .logo span { color: #a855f7; font-size: 1.3rem; }
+        .avatar {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            border: 1px solid #2d2f4a;
+            display: flex; align-items: center; justify-content: center;
+            color: #94a3b8; cursor: pointer;
+        }
+
+        /* HERO */
+        .hero {
+            text-align: center;
+            padding: 48px 24px 24px;
+        }
+        .hero h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 10px;
+        }
+        .hero p {
+            color: #94a3b8;
+            font-size: 0.95rem;
+        }
+
+        /* INPUT CARD */
+        .input-card {
+            background: #131629;
+            border: 1px solid #1e2235;
+            border-radius: 16px;
+            margin: 24px auto;
+            max-width: 600px;
+            padding: 16px;
+        }
+        .input-card textarea {
+            width: 100%;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #e2e8f0;
+            font-size: 1rem;
+            font-family: 'Inter', sans-serif;
+            resize: none;
+            min-height: 100px;
+            line-height: 1.6;
+        }
+        .input-card textarea::placeholder { color: #4a5568; }
+        .input-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 12px;
+        }
+        .input-icons { display: flex; gap: 16px; }
+        .input-icons button {
+            background: none; border: none;
+            color: #64748b; cursor: pointer;
+            font-size: 1.1rem; padding: 4px;
+            transition: color 0.2s;
+        }
+        .input-icons button:hover { color: #a855f7; }
+        .ask-btn {
+            background: #7c3aed;
+            color: #fff;
+            border: none;
+            border-radius: 50px;
+            padding: 10px 24px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.2s;
+        }
+        .ask-btn:hover { background: #6d28d9; }
+
+        /* SUGGESTIONS */
+        .suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            max-width: 600px;
+            margin: 0 auto 32px;
+            padding: 0 24px;
+        }
+        .chip {
+            background: #131629;
+            border: 1px solid #1e2235;
+            border-radius: 50px;
+            padding: 8px 16px;
+            font-size: 0.85rem;
+            color: #94a3b8;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .chip:hover { border-color: #7c3aed; color: #a855f7; }
+
+        /* ANSWER SECTION */
+        .answer-section {
+            max-width: 600px;
+            margin: 0 auto 40px;
+            padding: 0 24px;
+        }
+        .inquiry-bubble {
+            background: #2d1f5e;
+            border-radius: 16px;
+            padding: 14px 18px;
+            margin-bottom: 16px;
+            color: #c4b5fd;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+        .answer-card {
+            background: #131629;
+            border: 1px solid #1e2235;
+            border-radius: 16px;
+            padding: 20px;
+        }
+        .answer-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        .answer-icon {
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            background: #7c3aed;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.1rem;
+        }
+        .answer-meta h3 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #fff;
+        }
+        .answer-meta span {
+            font-size: 0.7rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .answer-text {
+            color: #cbd5e1;
+            font-size: 0.95rem;
+            line-height: 1.7;
+            margin-bottom: 16px;
+        }
+        .answer-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-top: 1px solid #1e2235;
+            padding-top: 12px;
+        }
+        .feedback { display: flex; gap: 12px; }
+        .feedback button, .action-btns button {
+            background: none; border: none;
+            color: #64748b; cursor: pointer;
+            font-size: 0.85rem; display: flex;
+            align-items: center; gap: 4px;
+            transition: color 0.2s;
+        }
+        .feedback button:hover { color: #a855f7; }
+        .action-btns { display: flex; gap: 12px; }
+        .action-btns button:hover { color: #a855f7; }
+
+        /* FEATURES */
+        .features {
+            max-width: 600px;
+            margin: 0 auto 40px;
+            padding: 0 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .feature-card {
+            background: #131629;
+            border: 1px solid #1e2235;
+            border-radius: 16px;
+            padding: 20px;
+        }
+        .feature-icon {
+            font-size: 1.4rem;
+            margin-bottom: 10px;
+        }
+        .feature-card h3 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+        .feature-card p {
+            color: #64748b;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        /* FOOTER */
+        footer {
+            text-align: center;
+            padding: 24px;
+            color: #374151;
+            font-size: 0.85rem;
+            border-top: 1px solid #1e2235;
+        }
+        footer a {
+            color: #4b5563;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+        footer a:hover { color: #a855f7; }
+    </style>
+</head>
+<body>
+
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <div class="logo">
+            <span>✦</span> Intellect
+        </div>
+        <div class="avatar">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+            </svg>
+        </div>
+    </nav>
+
+    <!-- HERO -->
+    <div class="hero">
+        <h1>How can I help you?</h1>
+        <p>Enter your question below to start an intellectual journey.</p>
+    </div>
+
+    <!-- INPUT FORM -->
+    <form method="POST" action="/">
+        <div class="input-card">
+            <textarea name="question" placeholder="Ask anything..." rows="4">{{ request.form.get('question', '') }}</textarea>
+            <div class="input-actions">
+                <div class="input-icons">
+                    <button type="button" title="Attach">📎</button>
+                    <button type="button" title="Voice">🎙️</button>
+                </div>
+                <button type="submit" class="ask-btn">Ask ➜</button>
+            </div>
+        </div>
+    </form>
+
+    <!-- SUGGESTIONS -->
+    <div class="suggestions">
+        <div class="chip">Deep learning ethics</div>
+        <div class="chip">Quantum physics basics</div>
+        <div class="chip">Future of SaaS</div>
+        <div class="chip">Abstract algebra</div>
+    </div>
+
+    <!-- ANSWER SECTION -->
+    {% if answer %}
+    <div class="answer-section">
+        <div class="inquiry-bubble">
+            Your recent inquiry has been processed by our neural core.
+        </div>
+        <div class="answer-card">
+            <div class="answer-header">
+                <div class="answer-icon">✦</div>
+                <div class="answer-meta">
+                    <h3>Intellect Intelligence</h3>
+                    <span>Response Generated</span>
+                </div>
+            </div>
+            <div class="answer-text">{{ answer }}</div>
+            <div class="answer-footer">
+                <div class="feedback">
+                    <button type="button">👍 Helpful</button>
+                    <button type="button">👎</button>
+                </div>
+                <div class="action-btns">
+                    <button type="button" title="Copy">📋</button>
+                    <button type="button" title="Share">↗</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- FEATURES -->
+    <div class="features">
+        <div class="feature-card">
+            <div class="feature-icon">⚙️</div>
+            <h3>Neural Synthesis</h3>
+            <p>Leverage state-of-the-art transformer models to synthesize complex information into digestible insights.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="color:#a855f7">▶_</div>
+            <h3>Precision Logic</h3>
+            <p>Advanced reasoning capabilities ensure that every response is grounded in logical consistency and factual accuracy.</p>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer>
+        <p>© 2024 Intellect AI. Powered by Magic.</p>
+        <br/>
+        <a href="#">Privacy</a>
+        <a href="#">Terms</a>
+        <a href="#">Support</a>
+    </footer>
+
+</body>
+</html>
