@@ -185,6 +185,30 @@
             line-height: 1.7;
             margin-bottom: 16px;
         }
+        .answer-text h1, .answer-text h2, .answer-text h3 {
+            color: #e2e8f0; margin: 14px 0 8px; font-weight: 700;
+        }
+        .answer-text h1 { font-size: 1.2rem; }
+        .answer-text h2 { font-size: 1.1rem; }
+        .answer-text h3 { font-size: 1rem; }
+        .answer-text p { margin: 8px 0; }
+        .answer-text ul, .answer-text ol { padding-left: 20px; margin: 8px 0; }
+        .answer-text li { margin: 4px 0; }
+        .answer-text code {
+            background: #1e2235; padding: 2px 6px; border-radius: 4px;
+            font-size: 0.85rem; color: #a855f7;
+        }
+        .answer-text pre {
+            background: #1e2235; padding: 12px; border-radius: 8px;
+            overflow-x: auto; margin: 10px 0;
+        }
+        .answer-text pre code { background: none; padding: 0; color: #e2e8f0; }
+        .answer-text table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+        .answer-text th, .answer-text td {
+            border: 1px solid #1e2235; padding: 8px; text-align: left;
+        }
+        .answer-text th { background: #1e2235; color: #a855f7; }
+        .answer-text strong { color: #e2e8f0; }
         .answer-footer {
             display: flex;
             align-items: center;
@@ -307,7 +331,7 @@
                     <span>Response Generated</span>
                 </div>
             </div>
-            <div class="answer-text">{{ answer }}</div>
+            <div class="answer-text">{{ answer | safe }}</div>
             <div class="answer-footer">
                 <div class="feedback">
                     <button type="button">👍 Helpful</button>

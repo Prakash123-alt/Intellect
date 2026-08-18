@@ -1,6 +1,8 @@
 from flask import Flask, render_template, request
 from groq import Groq
 import os
+import re
+import markdown
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -14,10 +16,15 @@ def index():
     if request.method == 'POST':
         user_input = request.form['question']
         response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            messages=[{"role": "user", "content": user_input}]
+            model="qwen/qwen3.6-27b",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant. Give clear, concise answers. Do not include any thinking or reasoning tags."},
+                {"role": "user", "content": user_input}
+            ]
         )
-        answer = response.choices[0].message.content
+        raw = response.choices[0].message.content
+        raw = re.sub(r'<think>.*?</think>', '', raw, flags=re.DOTALL).strip()
+        answer = markdown.markdown(raw, extensions=['tables', 'fenced_code'])
     return render_template('index.html', answer=answer)
 
 if __name__ == '__main__':
