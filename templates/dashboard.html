@@ -35,6 +35,43 @@
     </div>
 </div>
 
+{% if study_overview and (study_overview.today_tasks or study_overview.upcoming_tasks or study_overview.missed_tasks) %}
+<div class="card" style="margin-bottom:24px;">
+    <h2>&#128197; Study Plan Overview</h2>
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px;">
+        <div class="stat-card">
+            <div class="value">{{ study_overview.today_tasks|length }}</div>
+            <div class="label">Today's Tasks</div>
+        </div>
+        <div class="stat-card blue">
+            <div class="value">{{ study_overview.upcoming_tasks|length }}</div>
+            <div class="label">Upcoming (3 days)</div>
+        </div>
+        <div class="stat-card red">
+            <div class="value">{{ study_overview.missed_tasks|length }}</div>
+            <div class="label">Missed Tasks</div>
+        </div>
+        <div class="stat-card green">
+            <div class="value">{{ study_overview.readiness }}%</div>
+            <div class="label">Readiness Score</div>
+        </div>
+    </div>
+    {% if study_overview.today_tasks %}
+    <div style="display:flex;flex-direction:column;gap:6px;">
+        {% for t in study_overview.today_tasks %}
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#0B0D1A;border:1px solid #1E2235;border-radius:8px;font-size:0.85rem;">
+            <span>{{ t.topic_name }}</span>
+            <span class="tag" style="background:#1E2235;color:#94A3B8;">{{ t.task_type|replace('_', ' ')|capitalize }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% if study_overview.missed_tasks %}
+    <p style="margin-top:12px;font-size:0.8rem;color:#FCA5A5;">You have {{ study_overview.missed_tasks|length }} missed task(s). Visit your study plan to rebalance the schedule.</p>
+    {% endif %}
+</div>
+{% endif %}
+
 <div class="grid-2">
     <!-- Quick Actions -->
     <div class="card">

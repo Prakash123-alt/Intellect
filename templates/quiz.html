@@ -17,6 +17,26 @@
 .history-pct.high { color: #22C55E; }
 .history-pct.mid { color: #F59E0B; }
 .history-pct.low { color: #EF4444; }
+.mode-toggle {
+    display: flex; gap: 8px; margin-bottom: 16px; background: #0B0D1A;
+    border: 1px solid #1E2235; border-radius: 10px; padding: 4px;
+}
+.mode-toggle label {
+    flex: 1; text-align: center; padding: 8px 10px; border-radius: 8px;
+    font-size: 0.85rem; font-weight: 600; color: #64748B; cursor: pointer;
+    transition: all 0.2s;
+}
+.mode-toggle input { display: none; }
+.mode-toggle input:checked + span { color: #fff; }
+.mode-toggle label.active { background: #7C3AED; color: #fff; }
+.pdf-upload-zone {
+    border: 2px dashed #1E2235; border-radius: 10px; padding: 18px;
+    text-align: center; cursor: pointer; background: #0B0D1A; transition: all 0.2s;
+}
+.pdf-upload-zone:hover { border-color: #7C3AED; }
+.pdf-upload-zone .file-name { color: #A855F7; font-size: 0.82rem; font-weight: 600; margin-top: 6px; display: none; }
+.page-range-row { display: flex; gap: 10px; }
+.page-range-row .form-group { flex: 1; }
 {% endblock %}
 
 {% block content %}
@@ -28,14 +48,91 @@
     <!-- Generate Quiz Form -->
     <div class="card">
         <h2>&#9997; Generate New Quiz</h2>
-        <form method="POST" action="/quiz/generate">
-            <div class="form-group">
-                <label for="topic">Topic <span style="color:#EF4444;">*</span></label>
-                <input type="text" id="topic" name="topic" class="form-input" placeholder="e.g. Photosynthesis, World War II, Linear Algebra" required>
+        <form method="POST" action="/quiz/generate" enctype="multipart/form-data" id="quizGenForm">
+            <!-- Source mode toggle -->
+            <div class="mode-toggle" id="sourceModeToggle">
+                <label class="active" data-mode="topic">
+                    <input type="radio" name="source_mode" value="topic" checked>
+                    <span>&#9997; Topic-based</span>
+                </label>
+                <label data-mode="pdf">
+                    <input type="radio" name="source_mode" value="pdf">
+                    <span>&#128196; Generate From PDF</span>
+                </label>
             </div>
+
+            <div class="form-group" id="topicGroup">
+                <label for="topic">Topic <span style="color:#EF4444;" id="topicRequiredMark">*</span></label>
+                <input type="text" id="topic" name="topic" class="form-input" placeholder="e.g. Photosynthesis, World War II, Linear Algebra">
+            </div>
+
+            <!-- PDF-based fields -->
+            <div id="pdfGroup" style="display:none;">
+                <div class="form-group">
+                    <label>Upload PDF</label>
+                    <div class="pdf-upload-zone" onclick="document.getElementById('quizPdfFile').click();">
+                        <span>&#11014; <strong style="color:#A855F7;">Click to upload</strong> a PDF (notes, textbook, question bank)</span>
+                        <span class="file-name" id="quizPdfFileName"></span>
+                        <input type="file" name="pdf_file" id="quizPdfFile" accept=".pdf" style="display:none;" onchange="onQuizPdfChange(this)">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="existingPdf">Or use a previously uploaded PDF</label>
+                    <select id="existingPdf" name="existing_pdf_id" class="form-select">
+                        <option value="">-- None --</option>
+                        {% for pdf in pdfs %}
+                        <option value="{{ pdf.id }}" data-pages="{{ pdf.page_count }}">
+                            {{ pdf.original_name }} ({{ pdf.page_count }} pages)
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div id="pdfPreview" style="display:none;font-size:0.8rem;color:#64748B;margin:-6px 0 12px;">
+                    Selected: <span id="pdfPreviewName" style="color:#A855F7;font-weight:600;"></span>
+                    &middot; <span id="pdfPreviewPages"></span> pages
+                </div>
+                <div class="form-group">
+                    <label for="chapterTopic">Chapter / Topic Focus <span style="color:#64748B;font-weight:400;">(optional)</span></label>
+                    <input type="text" id="chapterTopic" name="chapter_topic" class="form-input" placeholder="e.g. Chapter 3: Thermodynamics">
+                </div>
+                <div class="form-group">
+                    <label>Content Range</label>
+                    <div class="mode-toggle" id="pageModeToggle">
+                        <label class="active" data-mode="entire">
+                            <input type="radio" name="page_mode" value="entire" checked>
+                            <span>Entire PDF</span>
+                        </label>
+                        <label data-mode="range">
+                            <input type="radio" name="page_mode" value="range">
+                            <span>Page Range</span>
+                        </label>
+                    </div>
+                    <div class="page-range-row" id="pageRangeRow" style="display:none;">
+                        <div class="form-group">
+                            <label for="startPage">From page</label>
+                            <input type="number" id="startPage" name="start_page" class="form-input" min="1" placeholder="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="endPage">To page</label>
+                            <input type="number" id="endPage" name="end_page" class="form-input" min="1" placeholder="10">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="form-group">
                 <label for="subject">Subject</label>
                 <input type="text" id="subject" name="subject" class="form-input" placeholder="e.g. Biology, History, Mathematics">
+            </div>
+            <div class="form-group">
+                <label for="question_type">Question Type</label>
+                <select id="question_type" name="question_type" class="form-select">
+                    <option value="mcq" selected>MCQ</option>
+                    <option value="1mark">1 Mark Questions</option>
+                    <option value="2mark">2 Mark Questions</option>
+                    <option value="5mark">5 Mark Questions</option>
+                    <option value="mixed">Mixed Mode</option>
+                </select>
             </div>
             <div class="form-group">
                 <label for="difficulty">Difficulty</label>
@@ -75,6 +172,17 @@
                         <span class="tag {% if quiz.difficulty == 'easy' %}tag-green{% elif quiz.difficulty == 'medium' %}tag-orange{% else %}tag-red{% endif %}">
                             {{ quiz.difficulty|capitalize }}
                         </span>
+                        <span class="tag" style="background:#1E2235;color:#94A3B8;">
+                            {% if quiz.question_type == 'mcq' %}MCQ
+                            {% elif quiz.question_type == '1mark' %}1 Mark
+                            {% elif quiz.question_type == '2mark' %}2 Mark
+                            {% elif quiz.question_type == '5mark' %}5 Mark
+                            {% elif quiz.question_type == 'mixed' %}Mixed
+                            {% else %}{{ quiz.question_type }}{% endif %}
+                        </span>
+                        {% if quiz.source_pdf_id %}
+                        <span class="tag tag-purple">&#128196; From PDF</span>
+                        {% endif %}
                         <span class="quiz-card-detail">{{ quiz.total_questions }} questions</span>
                         <span class="quiz-card-detail">{{ quiz.created_at }}</span>
                     </div>
@@ -145,4 +253,74 @@
     </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    function bindToggle(toggleId, groupShowMap) {
+        var toggle = document.getElementById(toggleId);
+        if (!toggle) return;
+        var labels = toggle.querySelectorAll('label');
+        labels.forEach(function(label) {
+            label.addEventListener('click', function() {
+                labels.forEach(function(l) { l.classList.remove('active'); });
+                label.classList.add('active');
+                var mode = label.getAttribute('data-mode');
+                Object.keys(groupShowMap).forEach(function(mode2) {
+                    var el = document.getElementById(groupShowMap[mode2]);
+                    if (el) el.style.display = (mode2 === mode) ? '' : 'none';
+                });
+            });
+        });
+    }
+
+    // Source mode: topic vs pdf
+    bindToggle('sourceModeToggle', { topic: 'topicGroup', pdf: 'pdfGroup' });
+    document.getElementById('sourceModeToggle').addEventListener('click', function() {
+        var mode = document.querySelector('#sourceModeToggle input:checked').value;
+        var topicInput = document.getElementById('topic');
+        var requiredMark = document.getElementById('topicRequiredMark');
+        if (mode === 'pdf') {
+            topicInput.removeAttribute('required');
+            requiredMark.style.display = 'none';
+        } else {
+            topicInput.setAttribute('required', 'required');
+            requiredMark.style.display = '';
+        }
+    });
+
+    // Page mode: entire vs range
+    bindToggle('pageModeToggle', { entire: null, range: 'pageRangeRow' });
+
+    // PDF file selection preview
+    window.onQuizPdfChange = function(input) {
+        var label = document.getElementById('quizPdfFileName');
+        if (input.files && input.files[0]) {
+            label.textContent = input.files[0].name;
+            label.style.display = 'block';
+            document.getElementById('existingPdf').value = '';
+            document.getElementById('pdfPreview').style.display = 'none';
+        }
+    };
+
+    // Existing PDF selection preview
+    var existingSelect = document.getElementById('existingPdf');
+    if (existingSelect) {
+        existingSelect.addEventListener('change', function() {
+            var opt = existingSelect.options[existingSelect.selectedIndex];
+            var preview = document.getElementById('pdfPreview');
+            if (existingSelect.value) {
+                document.getElementById('quizPdfFile').value = '';
+                document.getElementById('quizPdfFileName').style.display = 'none';
+                document.getElementById('pdfPreviewName').textContent = opt.textContent.split(' (')[0];
+                document.getElementById('pdfPreviewPages').textContent = opt.getAttribute('data-pages');
+                preview.style.display = 'block';
+            } else {
+                preview.style.display = 'none';
+            }
+        });
+    }
+})();
+</script>
 {% endblock %}

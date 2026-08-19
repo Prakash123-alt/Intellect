@@ -1,6 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Intellect AI - Predict Important Topics{% endblock %}
-{% block page_title %}Predict Important Topics{% endblock %}
+{% block title %}Intellect AI - Exam Prediction Assistant{% endblock %}
+{% block page_title %}Exam Prediction Assistant{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -14,103 +14,161 @@
         transition: background 0.2s;
     }
     .prediction-header:hover { background: #1a1d35; }
-    .prediction-header-left {
-        display: flex; align-items: center; gap: 12px;
-    }
-    .prediction-header-left h3 {
-        font-size: 1rem; font-weight: 700; color: #E2E8F0; margin: 0;
-    }
-    .prediction-date {
-        font-size: 0.75rem; color: #64748B;
-    }
-    .toggle-icon {
-        font-size: 1.2rem; color: #64748B; transition: transform 0.3s;
-    }
+    .prediction-header-left { display: flex; align-items: center; gap: 12px; }
+    .prediction-header-left h3 { font-size: 1rem; font-weight: 700; color: #E2E8F0; margin: 0; }
+    .prediction-date { font-size: 0.75rem; color: #64748B; }
+    .toggle-icon { font-size: 1.2rem; color: #64748B; transition: transform 0.3s; }
     .prediction-card.open .toggle-icon { transform: rotate(180deg); }
-    .prediction-body {
-        max-height: 0; overflow: hidden; transition: max-height 0.4s ease;
-    }
-    .prediction-card.open .prediction-body { max-height: 5000px; }
-    .prediction-content {
-        padding: 0 20px 20px; border-top: 1px solid #1E2235;
-    }
+    .prediction-body { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; }
+    .prediction-card.open .prediction-body { max-height: 20000px; }
+    .prediction-content { padding: 0 20px 20px; border-top: 1px solid #1E2235; }
     .priority-section { margin-top: 20px; }
-    .priority-section h4 {
-        font-size: 0.9rem; font-weight: 700; margin-bottom: 12px;
-        display: flex; align-items: center; gap: 8px;
-    }
-    .priority-item {
-        background: #0B0D1A; border: 1px solid #1E2235; border-radius: 8px;
-        padding: 12px 16px; margin-bottom: 8px;
-    }
-    .priority-item-topic {
-        font-size: 0.9rem; font-weight: 600; color: #E2E8F0; margin-bottom: 4px;
-    }
-    .priority-item-reason {
-        font-size: 0.8rem; color: #94A3B8;
-    }
-    .predicted-questions {
-        list-style: none; counter-reset: pq; padding: 0;
-    }
+    .priority-section h4 { font-size: 0.9rem; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .priority-item { background: #0B0D1A; border: 1px solid #1E2235; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; }
+    .priority-item-topic { font-size: 0.9rem; font-weight: 600; color: #E2E8F0; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .priority-item-reason { font-size: 0.8rem; color: #94A3B8; }
+    .metric-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+    .metric-pill { font-size: 0.7rem; font-weight: 700; padding: 2px 9px; border-radius: 20px; background: #1E2235; color: #94A3B8; }
+    .metric-pill.green { background: #064E3B; color: #6EE7B7; }
+    .metric-pill.orange { background: #3a2a0a; color: #F59E0B; }
+    .metric-pill.red { background: #450A0A; color: #FCA5A5; }
+    .metric-pill.purple { background: #1a1040; color: #A855F7; }
+    .predicted-questions { list-style: none; counter-reset: pq; padding: 0; }
     .predicted-questions li {
         counter-increment: pq; padding: 10px 16px; margin-bottom: 6px;
         background: #0B0D1A; border: 1px solid #1E2235; border-radius: 8px;
         font-size: 0.85rem; color: #CBD5E1;
     }
-    .predicted-questions li::before {
-        content: counter(pq) ". ";
-        color: #A855F7; font-weight: 700;
-    }
-    .tips-list {
-        list-style: none; padding: 0;
-    }
+    .predicted-questions li::before { content: counter(pq) ". "; color: #A855F7; font-weight: 700; }
+    .qa-item { background: #0B0D1A; border: 1px solid #1E2235; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; }
+    .qa-item .q { font-size: 0.85rem; color: #E2E8F0; font-weight: 600; margin-bottom: 6px; }
+    .qa-item .a { font-size: 0.8rem; color: #94A3B8; }
+    .qa-item .a strong { color: #22C55E; }
+    .tips-list { list-style: none; padding: 0; }
     .tips-list li {
-        padding: 8px 0; border-bottom: 1px solid #1E2235;
-        font-size: 0.85rem; color: #CBD5E1;
+        padding: 8px 0; border-bottom: 1px solid #1E2235; font-size: 0.85rem; color: #CBD5E1;
         display: flex; align-items: baseline; gap: 8px;
     }
     .tips-list li:last-child { border-bottom: none; }
-    .tips-list li::before {
-        content: "\2022"; color: #A855F7; font-weight: 700; font-size: 1.1rem;
-        flex-shrink: 0;
+    .tips-list li::before { content: "\2022"; color: #A855F7; font-weight: 700; font-size: 1.1rem; flex-shrink: 0; }
+    .mini-upload-zone {
+        border: 2px dashed #1E2235; border-radius: 10px; padding: 16px;
+        text-align: center; cursor: pointer; background: #0B0D1A; transition: all 0.2s;
+        font-size: 0.82rem; color: #64748B;
     }
+    .mini-upload-zone:hover { border-color: #7C3AED; }
+    .mini-upload-zone strong { color: #A855F7; }
+    .file-list { font-size: 0.78rem; color: #A855F7; margin-top: 6px; text-align: left; }
+    .doc-item {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 10px 14px; background: #0B0D1A; border: 1px solid #1E2235;
+        border-radius: 8px; margin-bottom: 8px; font-size: 0.82rem;
+    }
+    .doc-item .name { color: #E2E8F0; font-weight: 600; }
+    .doc-item .meta { color: #64748B; font-size: 0.75rem; }
+    .action-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+    .tab-strip { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+    .tab-strip button {
+        background: #0B0D1A; border: 1px solid #1E2235; color: #94A3B8;
+        border-radius: 8px; padding: 6px 12px; font-size: 0.78rem; font-weight: 600;
+        cursor: pointer; transition: all 0.2s;
+    }
+    .tab-strip button.active { background: #7C3AED; color: #fff; border-color: #7C3AED; }
+    .pq-group { display: none; }
+    .pq-group.active { display: block; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div style="margin-bottom:24px;">
-    <p style="color:#94A3B8;font-size:0.95rem;">Use AI to predict which topics are most likely to appear in your exam and get tailored preparation tips.</p>
+    <p style="color:#94A3B8;font-size:0.95rem;">Upload previous year papers and question banks. AI analyzes historical patterns to predict frequently asked topics, repeated questions, high-weightage concepts, and generates a full predicted exam paper with practice tests.</p>
 </div>
 
-<!-- Prediction Form -->
+<!-- Analyze Form -->
 <div class="card" style="margin-bottom:24px;">
-    <h2>Analyze Exam Topics</h2>
-    <form method="POST" action="/predict/analyze" id="predictForm">
+    <h2>&#128202; Analyze Exam Documents</h2>
+    <form method="POST" action="/predict/analyze" enctype="multipart/form-data" id="predictForm">
         <div class="form-group">
-            <label for="subject">Subject</label>
-            <input type="text" id="subject" name="subject" class="form-input" placeholder="e.g. Computer Science" required>
+            <label for="subject">Subject <span style="color:#EF4444;">*</span></label>
+            <input type="text" id="subject" name="subject" class="form-input"
+                   placeholder="e.g. Computer Science, Machine Learning, DBMS, Operating Systems"
+                   value="{{ subject_filter or '' }}" required>
         </div>
+
+        <div class="grid-2">
+            <div class="form-group">
+                <label>Upload Previous Year Papers</label>
+                <div class="mini-upload-zone" onclick="document.getElementById('papersInput').click();">
+                    <span>&#11014; <strong>Click to upload</strong> mid/final/semester papers</span>
+                    <div style="font-size:0.72rem;margin-top:4px;">PDF, DOCX, or TXT &middot; multiple files</div>
+                    <div class="file-list" id="papersFileList"></div>
+                    <input type="file" name="papers" id="papersInput" accept=".pdf,.docx,.txt" multiple
+                           style="display:none;" onchange="showFiles(this, 'papersFileList')">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Upload Question Banks</label>
+                <div class="mini-upload-zone" onclick="document.getElementById('banksInput').click();">
+                    <span>&#11014; <strong>Click to upload</strong> question banks</span>
+                    <div style="font-size:0.72rem;margin-top:4px;">PDF, DOCX, or TXT &middot; multiple files</div>
+                    <div class="file-list" id="banksFileList"></div>
+                    <input type="file" name="question_banks" id="banksInput" accept=".pdf,.docx,.txt" multiple
+                           style="display:none;" onchange="showFiles(this, 'banksFileList')">
+                </div>
+            </div>
+        </div>
+
         <div class="form-group">
-            <label for="syllabus_topics">Syllabus Topics</label>
-            <textarea id="syllabus_topics" name="syllabus_topics" class="form-textarea" placeholder="Enter syllabus topics, one per line or comma-separated" required></textarea>
+            <label for="syllabus_topics">Syllabus Topics <span style="color:#64748B;font-weight:400;">(optional)</span></label>
+            <textarea id="syllabus_topics" name="syllabus_topics" class="form-textarea"
+                      placeholder="Chapter names, unit names, or course topics..."></textarea>
         </div>
+
         <div class="form-group">
-            <label for="past_exam_topics">Past Exam Topics</label>
-            <textarea id="past_exam_topics" name="past_exam_topics" class="form-textarea" style="min-height:80px;" placeholder="Topics from previous exams (optional)"></textarea>
+            <label for="analysis_type">Analysis Type</label>
+            <select id="analysis_type" name="analysis_type" class="form-select">
+                <option value="frequent_topics">Frequently Asked Topics</option>
+                <option value="repeated_questions">Repeated Questions</option>
+                <option value="high_weightage">High Weightage Concepts</option>
+                <option value="full" selected>Full Exam Analysis</option>
+            </select>
         </div>
-        <button type="submit" class="btn btn-primary" id="predictBtn">
-            <span>&#9733;</span> Predict Important Topics
+
+        <button type="submit" class="btn btn-primary" id="predictBtn" style="width:100%;justify-content:center;">
+            &#9733; Analyze &amp; Predict Exam Topics
         </button>
         <span class="loading" id="predictLoading">
-            <span class="spinner"></span> Analyzing topics...
+            <span class="spinner"></span> Analyzing exam patterns... this may take a minute
         </span>
     </form>
 </div>
 
-<!-- Predictions List -->
+<!-- Uploaded Documents -->
+{% if documents %}
+<div class="card" style="margin-bottom:24px;">
+    <h2>&#128193; Uploaded Documents{% if subject_filter %} — {{ subject_filter }}{% endif %}</h2>
+    {% for doc in documents %}
+    <div class="doc-item">
+        <div>
+            <div class="name">{{ doc.original_name }}</div>
+            <div class="meta">
+                {{ doc.subject }}
+                {% if doc.year %} &middot; {{ doc.year }}{% endif %}
+                &middot; {{ doc.chunk_count }} chunks indexed
+            </div>
+        </div>
+        <span class="tag {% if doc.doc_type == 'paper' %}tag-purple{% else %}tag-orange{% endif %}">
+            {{ 'Paper' if doc.doc_type == 'paper' else 'Question Bank' }}
+        </span>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Predictions -->
 {% if predictions %}
 <div style="margin-bottom:16px;">
-    <h2 style="font-size:1.1rem;font-weight:700;">Previous Predictions</h2>
+    <h2 style="font-size:1.1rem;font-weight:700;">Prediction Reports</h2>
 </div>
 
 {% for pred in predictions %}
@@ -120,7 +178,7 @@
             <span style="font-size:1.2rem;">&#9733;</span>
             <div>
                 <h3>{{ pred.subject }}</h3>
-                <span class="prediction-date">{{ pred.created_at }}</span>
+                <span class="prediction-date">{{ pred.created_at }} &middot; {{ pred.analysis_type|replace('_', ' ')|capitalize }}</span>
             </div>
         </div>
         <span class="toggle-icon">&#9660;</span>
@@ -129,42 +187,70 @@
         <div class="prediction-content">
             {% set pdata = pred.prediction_data %}
 
-            <!-- High Priority -->
-            {% if pdata.high_priority %}
+            <!-- Frequently Asked Topics -->
+            {% if pdata.frequently_asked_topics %}
             <div class="priority-section">
-                <h4><span class="tag tag-red">High Priority</span> Most Likely to Appear</h4>
-                {% for item in pdata.high_priority %}
-                <div class="priority-item" style="border-left:3px solid #EF4444;">
-                    <div class="priority-item-topic">{{ item.topic }}</div>
-                    <div class="priority-item-reason">{{ item.reason }}</div>
+                <h4><span class="tag tag-purple">Frequently Asked Topics</span></h4>
+                {% for item in pdata.frequently_asked_topics %}
+                <div class="priority-item">
+                    <div class="priority-item-topic">
+                        <span>{{ item.topic }}</span>
+                        <span class="metric-pills">
+                            <span class="metric-pill purple">Freq: {{ item.frequency }}</span>
+                            <span class="metric-pill {% if item.importance_score >= 70 %}red{% elif item.importance_score >= 40 %}orange{% else %}green{% endif %}">Importance: {{ item.importance_score }}%</span>
+                            <span class="metric-pill">Confidence: {{ item.confidence }}%</span>
+                        </span>
+                    </div>
                 </div>
                 {% endfor %}
             </div>
             {% endif %}
 
-            <!-- Medium Priority -->
-            {% if pdata.medium_priority %}
+            <!-- Repeated Questions -->
+            {% if pdata.repeated_questions %}
             <div class="priority-section">
-                <h4><span class="tag tag-orange">Medium Priority</span> Likely to Appear</h4>
-                {% for item in pdata.medium_priority %}
-                <div class="priority-item" style="border-left:3px solid #F59E0B;">
-                    <div class="priority-item-topic">{{ item.topic }}</div>
-                    <div class="priority-item-reason">{{ item.reason }}</div>
+                <h4><span class="tag tag-red">Repeated Questions</span></h4>
+                {% for item in pdata.repeated_questions %}
+                <div class="priority-item">
+                    <div class="priority-item-topic">
+                        <span>{{ item.question }}</span>
+                        <span class="metric-pills">
+                            {% if item.years_appeared %}<span class="metric-pill">{{ item.years_appeared|join(', ') }}</span>{% endif %}
+                            <span class="metric-pill {% if item.importance == 'Highly Important' %}red{% elif item.importance == 'Important' %}orange{% else %}green{% endif %}">{{ item.importance }}</span>
+                        </span>
+                    </div>
                 </div>
                 {% endfor %}
             </div>
             {% endif %}
 
-            <!-- Low Priority -->
-            {% if pdata.low_priority %}
+            <!-- High Weightage Concepts -->
+            {% if pdata.high_weightage_concepts %}
             <div class="priority-section">
-                <h4><span class="tag tag-blue">Low Priority</span> Less Likely</h4>
-                {% for item in pdata.low_priority %}
-                <div class="priority-item" style="border-left:3px solid #3B82F6;">
-                    <div class="priority-item-topic">{{ item.topic }}</div>
-                    <div class="priority-item-reason">{{ item.reason }}</div>
+                <h4><span class="tag tag-orange">High Weightage Concepts</span></h4>
+                {% for item in pdata.high_weightage_concepts %}
+                <div class="priority-item">
+                    <div class="priority-item-topic">
+                        <span>{{ item.concept }}</span>
+                        <span class="metric-pills">
+                            <span class="metric-pill purple">Exam freq: {{ item.exam_frequency }}%</span>
+                            <span class="metric-pill {% if item.weightage_level == 'Critical' %}red{% elif item.weightage_level == 'High' %}orange{% elif item.weightage_level == 'Medium' %}purple{% else %}green{% endif %}">{{ item.weightage_level }}</span>
+                        </span>
+                    </div>
                 </div>
                 {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Important Chapters -->
+            {% if pdata.important_chapters %}
+            <div class="priority-section">
+                <h4 style="color:#22C55E;">Important Chapters</h4>
+                <ol class="predicted-questions">
+                    {% for ch in pdata.important_chapters %}
+                    <li>{{ ch }}</li>
+                    {% endfor %}
+                </ol>
             </div>
             {% endif %}
 
@@ -172,25 +258,90 @@
             {% if pdata.predicted_questions %}
             <div class="priority-section">
                 <h4 style="color:#A855F7;">Predicted Questions</h4>
-                <ol class="predicted-questions">
-                    {% for q in pdata.predicted_questions %}
-                    <li>{{ q }}</li>
-                    {% endfor %}
+                <div class="tab-strip" data-group="pq-{{ pred.id }}">
+                    <button type="button" class="active" data-target="pq-{{ pred.id }}-1">1 Mark</button>
+                    <button type="button" data-target="pq-{{ pred.id }}-2">2 Mark</button>
+                    <button type="button" data-target="pq-{{ pred.id }}-5">5 Mark</button>
+                    <button type="button" data-target="pq-{{ pred.id }}-10">10 Mark</button>
+                </div>
+                {% if pdata.predicted_questions['1_mark'] %}
+                <ol class="predicted-questions pq-group active" id="pq-{{ pred.id }}-1">
+                    {% for q in pdata.predicted_questions['1_mark'] %}<li>{{ q }}</li>{% endfor %}
                 </ol>
+                {% endif %}
+                {% if pdata.predicted_questions['2_mark'] %}
+                <ol class="predicted-questions pq-group" id="pq-{{ pred.id }}-2">
+                    {% for q in pdata.predicted_questions['2_mark'] %}<li>{{ q }}</li>{% endfor %}
+                </ol>
+                {% endif %}
+                {% if pdata.predicted_questions['5_mark'] %}
+                <ol class="predicted-questions pq-group" id="pq-{{ pred.id }}-5">
+                    {% for q in pdata.predicted_questions['5_mark'] %}<li>{{ q }}</li>{% endfor %}
+                </ol>
+                {% endif %}
+                {% if pdata.predicted_questions['10_mark'] %}
+                <ol class="predicted-questions pq-group" id="pq-{{ pred.id }}-10">
+                    {% for q in pdata.predicted_questions['10_mark'] %}<li>{{ q }}</li>{% endfor %}
+                </ol>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Predicted Exam Paper -->
+            {% if pdata.predicted_paper %}
+            <div class="priority-section">
+                <h4 style="color:#3B82F6;">Predicted Exam Paper</h4>
+                {% for part_key, part_label in [('part_a', 'Part A'), ('part_b', 'Part B'), ('part_c', 'Part C')] %}
+                {% if pdata.predicted_paper[part_key] %}
+                <div style="margin-top:10px;">
+                    <span class="tag" style="background:#1E2235;color:#94A3B8;margin-bottom:8px;display:inline-block;">{{ part_label }}</span>
+                    {% for qa in pdata.predicted_paper[part_key] %}
+                    <div class="qa-item">
+                        <div class="q">{{ loop.index }}. {{ qa.question }}</div>
+                        {% if qa.answer %}<div class="a"><strong>Answer:</strong> {{ qa.answer }}</div>{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% endfor %}
             </div>
             {% endif %}
 
             <!-- Preparation Tips -->
             {% if pdata.preparation_tips %}
             <div class="priority-section">
-                <h4 style="color:#22C55E;">Preparation Tips</h4>
-                <ul class="tips-list">
-                    {% for tip in pdata.preparation_tips %}
-                    <li>{{ tip }}</li>
-                    {% endfor %}
-                </ul>
+                <h4 style="color:#22C55E;">AI Preparation Tips</h4>
+                {% for tip_key, tip_label in [('priority_topics', 'Topics to Prioritize'), ('chapters_to_revise_first', 'Chapters to Revise First'), ('important_formulas', 'Important Formulas'), ('frequently_tested_concepts', 'Frequently Tested Concepts')] %}
+                {% if pdata.preparation_tips[tip_key] %}
+                <div style="margin-bottom:12px;">
+                    <div style="font-size:0.82rem;font-weight:600;color:#CBD5E1;margin-bottom:4px;">{{ tip_label }}</div>
+                    <ul class="tips-list">
+                        {% for tip in pdata.preparation_tips[tip_key] %}<li>{{ tip }}</li>{% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                {% endfor %}
             </div>
             {% endif %}
+
+            <!-- Practice Test Generator -->
+            <div class="priority-section">
+                <h4>&#9997; Practice Test Generator</h4>
+                <div class="action-row">
+                    <a href="/predict/practice-test/{{ pred.id }}/mcq" class="btn btn-primary btn-sm" style="text-decoration:none;">Generate MCQ Test</a>
+                    <a href="/predict/practice-test/{{ pred.id }}/short" class="btn btn-primary btn-sm" style="text-decoration:none;">Generate Short Answer Test</a>
+                    <a href="/predict/practice-test/{{ pred.id }}/long" class="btn btn-primary btn-sm" style="text-decoration:none;">Generate Long Answer Test</a>
+                </div>
+            </div>
+
+            <!-- Export -->
+            <div class="priority-section">
+                <h4>&#11015; Export</h4>
+                <div class="action-row">
+                    <a href="/predict/export/{{ pred.id }}/txt" class="btn btn-secondary btn-sm" style="text-decoration:none;">Export as TXT</a>
+                    <a href="/predict/export/{{ pred.id }}/pdf" class="btn btn-secondary btn-sm" style="text-decoration:none;">Export as PDF</a>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -200,7 +351,7 @@
 <div class="card">
     <div class="empty-state">
         <div class="icon">&#9733;</div>
-        <p>No predictions yet. Enter your syllabus topics above to get AI-powered exam predictions.</p>
+        <p>No predictions yet. Upload previous year papers or question banks above and click "Analyze &amp; Predict Exam Topics".</p>
     </div>
 </div>
 {% endif %}
@@ -209,17 +360,39 @@
 {% block extra_js %}
 <script>
     function togglePrediction(id) {
-        const card = document.getElementById(id);
-        card.classList.toggle('open');
+        document.getElementById(id).classList.toggle('open');
     }
 
-    // Auto-open the first prediction
     document.addEventListener('DOMContentLoaded', function() {
         const first = document.querySelector('.prediction-card');
         if (first) first.classList.add('open');
     });
 
-    // Form loading state
+    function showFiles(input, listId) {
+        const el = document.getElementById(listId);
+        if (input.files && input.files.length) {
+            el.textContent = Array.from(input.files).map(f => f.name).join(', ');
+        } else {
+            el.textContent = '';
+        }
+    }
+
+    // Predicted questions mark-value tabs
+    document.querySelectorAll('.tab-strip').forEach(function(strip) {
+        strip.querySelectorAll('button').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                strip.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const groupPrefix = strip.getAttribute('data-group');
+                document.querySelectorAll('#' + strip.closest('.priority-section').id + ' .pq-group, .pq-group[id^="' + groupPrefix + '"]').forEach(function(g) {
+                    g.classList.remove('active');
+                });
+                const target = document.getElementById(btn.getAttribute('data-target'));
+                if (target) target.classList.add('active');
+            });
+        });
+    });
+
     const form = document.getElementById('predictForm');
     if (form) {
         form.addEventListener('submit', function() {

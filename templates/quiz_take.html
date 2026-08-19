@@ -51,6 +51,17 @@
     background: #A855F7; color: #fff;
 }
 .option-label { font-size: 0.9rem; color: #CBD5E1; line-height: 1.4; }
+.marks-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 0.7rem; font-weight: 700; color: #A855F7; background: #1a1040;
+    border-radius: 20px; padding: 2px 10px; margin-left: 8px; flex-shrink: 0;
+}
+.subjective-answer {
+    width: 100%; min-height: 90px; background: #0B0D1A; border: 1px solid #1E2235;
+    border-radius: 10px; padding: 12px 14px; color: #E2E8F0; font-size: 0.9rem;
+    font-family: inherit; resize: vertical;
+}
+.subjective-answer:focus { outline: none; border-color: #7C3AED; }
 .submit-bar {
     position: sticky; bottom: 0; background: #0B0D1A; border-top: 1px solid #1E2235;
     padding: 16px 0; display: flex; align-items: center; justify-content: space-between;
@@ -93,7 +104,9 @@
         <div class="question-text">
             <span class="question-number">{{ loop.index }}</span>
             <span>{{ question.question }}</span>
+            <span class="marks-badge">{{ question.marks }} mark{{ 's' if question.marks != 1 else '' }}</span>
         </div>
+        {% if question.question_type == 'mcq' %}
         <div class="options-grid">
             <label class="option-card" data-question="{{ question.id }}">
                 <input type="radio" name="q_{{ question.id }}" value="A" required>
@@ -116,6 +129,10 @@
                 <span class="option-label">{{ question.option_d }}</span>
             </label>
         </div>
+        {% else %}
+        <textarea class="subjective-answer" name="q_{{ question.id }}"
+            placeholder="Type your answer here..."></textarea>
+        {% endif %}
     </div>
     {% endfor %}
 
@@ -169,12 +186,22 @@
         const questionBlocks = document.querySelectorAll('.question-block');
         questionBlocks.forEach(function(block) {
             const radios = block.querySelectorAll('input[type="radio"]');
+            let done = false;
             for (let i = 0; i < radios.length; i++) {
-                if (radios[i].checked) { answered++; break; }
+                if (radios[i].checked) { done = true; break; }
             }
+            if (!done) {
+                const textarea = block.querySelector('.subjective-answer');
+                if (textarea && textarea.value.trim().length > 0) done = true;
+            }
+            if (done) answered++;
         });
         progressText.textContent = answered + ' of ' + totalQuestions + ' answered';
     }
+
+    document.querySelectorAll('.subjective-answer').forEach(function(ta) {
+        ta.addEventListener('input', updateProgress);
+    });
 
     // Confirm before leaving page
     window.addEventListener('beforeunload', function(e) {

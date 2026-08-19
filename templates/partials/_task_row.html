@@ -1,0 +1,21 @@
+<div class="task-row {{ 'completed' if t.status == 'completed' else '' }}">
+    <div class="task-row-left">
+        <span class="task-topic">{{ t.topic_name }}</span>
+        {% if t.chapter_name %}<span class="tag" style="background:#1E2235;color:#94A3B8;">{{ t.chapter_name }}</span>{% endif %}
+        <span class="tag {% if t.difficulty == 'easy' %}tag-green{% elif t.difficulty == 'hard' %}tag-red{% else %}tag-orange{% endif %}">{{ t.difficulty|capitalize }}</span>
+        <span class="tag" style="background:#1E2235;color:#94A3B8;">{{ t.task_type|replace('_', ' ')|capitalize }}</span>
+        <span style="color:#64748B;font-size:0.78rem;">&#9201; {{ t.estimated_hours }}h</span>
+        <span style="color:#64748B;font-size:0.78rem;">{{ t.scheduled_date }}</span>
+        {% if t.status != 'completed' and t.scheduled_date and t.scheduled_date < today_str %}
+        <span class="missed-badge">Missed</span>
+        {% endif %}
+    </div>
+    <form method="POST" action="/study-plan/task/{{ t.id }}/status" style="margin:0;">
+        <input type="hidden" name="plan_id" value="{{ selected_plan.id }}">
+        <select name="status" class="status-select {{ t.status }}" onchange="submitTaskStatus(this)">
+            <option value="not_started" {% if t.status == 'not_started' %}selected{% endif %}>Not Started</option>
+            <option value="in_progress" {% if t.status == 'in_progress' %}selected{% endif %}>In Progress</option>
+            <option value="completed" {% if t.status == 'completed' %}selected{% endif %}>Completed</option>
+        </select>
+    </form>
+</div>

@@ -104,6 +104,34 @@
 .your-question strong { color: #A855F7; white-space: nowrap; }
 .your-question span { color: #CBD5E1; }
 
+.pdf-item-wrapper { margin-bottom: 10px; }
+.difficulty-toggle-btn {
+    background: #1E2235; color: #F59E0B; border: 1px solid #3a2a0a;
+    border-radius: 6px; padding: 5px 10px; font-size: 0.72rem; font-weight: 700;
+    cursor: pointer; white-space: nowrap;
+}
+.difficulty-toggle-btn:hover { border-color: #F59E0B; }
+.difficulty-panel {
+    margin-top: 8px; display: flex; flex-direction: column; gap: 10px;
+}
+.difficulty-card {
+    background: #0B0D1A; border: 1px solid #3a2a0a; border-radius: 10px; padding: 14px 16px;
+}
+.difficulty-card .concept-name {
+    font-size: 0.92rem; font-weight: 700; color: #E2E8F0; display: flex;
+    align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px;
+}
+.difficulty-warning {
+    font-size: 0.78rem; color: #F59E0B; background: #3a2a0a; border: 1px solid #78350F;
+    border-radius: 20px; padding: 3px 10px; display: inline-flex; align-items: center; gap: 4px;
+    font-weight: 600;
+}
+.difficulty-card .section-label {
+    font-size: 0.72rem; font-weight: 700; color: #A855F7; text-transform: uppercase;
+    letter-spacing: 0.5px; margin-top: 10px; margin-bottom: 3px;
+}
+.difficulty-card .section-body { font-size: 0.85rem; color: #CBD5E1; line-height: 1.6; }
+
 @keyframes fadeSlideIn {
     from { opacity: 0; transform: translateY(12px); }
     to { opacity: 1; transform: translateY(0); }
@@ -208,21 +236,63 @@
         {% if pdfs %}
         <div class="pdf-list">
             {% for pdf in pdfs %}
-            <div class="pdf-item">
-                <div class="pdf-item-info">
-                    <div class="pdf-item-icon">&#128196;</div>
-                    <div class="pdf-item-details">
-                        <div class="name">{{ pdf.original_name }}</div>
-                        <div class="meta">
-                            <span>{{ pdf.page_count }} page{{ 's' if pdf.page_count != 1 else '' }}</span>
-                            <span>&middot;</span>
-                            <span>{{ pdf.uploaded_at }}</span>
+            <div class="pdf-item-wrapper" id="pdf-{{ pdf.id }}">
+                <div class="pdf-item">
+                    <div class="pdf-item-info">
+                        <div class="pdf-item-icon">&#128196;</div>
+                        <div class="pdf-item-details">
+                            <div class="name">{{ pdf.original_name }}</div>
+                            <div class="meta">
+                                <span>{{ pdf.page_count }} page{{ 's' if pdf.page_count != 1 else '' }}</span>
+                                <span>&middot;</span>
+                                <span>{{ pdf.uploaded_at }}</span>
+                            </div>
                         </div>
                     </div>
+                    <div class="pdf-item-tags">
+                        <span class="tag tag-purple">{{ pdf.subject }}</span>
+                        {% if pdf.difficulty_analysis %}
+                        <button type="button" class="difficulty-toggle-btn" onclick="toggleDifficulty({{ pdf.id }})">
+                            &#9888; {{ pdf.difficulty_analysis|length }} Hard Concept{{ 's' if pdf.difficulty_analysis|length != 1 else '' }}
+                        </button>
+                        {% else %}
+                        <form method="POST" action="/pdf/analyze-difficulty" style="margin:0;">
+                            <input type="hidden" name="pdf_id" value="{{ pdf.id }}">
+                            <button type="submit" class="difficulty-toggle-btn">&#129504; Detect Difficult Concepts</button>
+                        </form>
+                        {% endif %}
+                    </div>
                 </div>
-                <div class="pdf-item-tags">
-                    <span class="tag tag-purple">{{ pdf.subject }}</span>
+                {% if pdf.difficulty_analysis %}
+                <div class="difficulty-panel" id="diff-panel-{{ pdf.id }}"
+                     style="display:{{ 'flex' if expand_pdf == pdf.id else 'none' }};">
+                    {% for item in pdf.difficulty_analysis %}
+                    <div class="difficulty-card">
+                        <div class="concept-name">
+                            <span>{{ item.concept }}</span>
+                            <span class="tag" style="background:#1E2235;color:#94A3B8;">
+                                {{ item.category|replace('_', ' ')|capitalize }}
+                            </span>
+                        </div>
+                        <div class="difficulty-warning">&#9888; This topic is usually difficult for students.</div>
+                        <div class="section-label">Simplified Explanation</div>
+                        <div class="section-body">{{ item.simplified_explanation }}</div>
+                        {% if item.real_world_example %}
+                        <div class="section-label">Real-World Example</div>
+                        <div class="section-body">{{ item.real_world_example }}</div>
+                        {% endif %}
+                        {% if item.memory_trick %}
+                        <div class="section-label">Memory Trick</div>
+                        <div class="section-body">&#128161; {{ item.memory_trick }}</div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                    <form method="POST" action="/pdf/analyze-difficulty" style="margin:0;">
+                        <input type="hidden" name="pdf_id" value="{{ pdf.id }}">
+                        <button type="submit" class="btn btn-secondary btn-sm">&#8635; Re-analyze</button>
+                    </form>
                 </div>
+                {% endif %}
             </div>
             {% endfor %}
         </div>
@@ -268,6 +338,13 @@
         if (input.files && input.files[0]) {
             label.textContent = input.files[0].name;
             label.style.display = 'block';
+        }
+    }
+
+    function toggleDifficulty(pdfId) {
+        var panel = document.getElementById('diff-panel-' + pdfId);
+        if (panel) {
+            panel.style.display = (panel.style.display === 'none' || !panel.style.display) ? 'flex' : 'none';
         }
     }
 

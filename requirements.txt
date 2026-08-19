@@ -5,3 +5,6 @@ markdown
 PyPDF2
 pymupdf
 Werkzeug>=2.3.0
+chromadb
+python-docx
+reportlab
