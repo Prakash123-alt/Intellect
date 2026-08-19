@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Intellect AI - Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:24px;">
+    <p style="color:#94A3B8;font-size:0.95rem;">Welcome back! Here's your exam preparation overview.</p>
+</div>
+
+<!-- Quick Stats -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="value">{{ data.total_quizzes }}</div>
+        <div class="label">Quizzes Created</div>
+    </div>
+    <div class="stat-card green">
+        <div class="value">{{ data.total_flashcards }}</div>
+        <div class="label">Flashcards</div>
+    </div>
+    <div class="stat-card blue">
+        <div class="value">{{ data.total_study_hours }}h</div>
+        <div class="label">Study Hours</div>
+    </div>
+    <div class="stat-card orange">
+        <div class="value">{{ data.total_notes }}</div>
+        <div class="label">Notes Created</div>
+    </div>
+    <div class="stat-card">
+        <div class="value">{{ data.total_pdfs }}</div>
+        <div class="label">PDFs Uploaded</div>
+    </div>
+    <div class="stat-card red">
+        <div class="value">{{ data.weak_topics }}</div>
+        <div class="label">Weak Topics</div>
+    </div>
+</div>
+
+<div class="grid-2">
+    <!-- Quick Actions -->
+    <div class="card">
+        <h2>Quick Actions</h2>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+            <a href="/ask" class="btn btn-primary" style="text-decoration:none;justify-content:center;">
+                Ask AI a Question
+            </a>
+            <a href="/quiz" class="btn btn-secondary" style="text-decoration:none;justify-content:center;">
+                Generate a Quiz
+            </a>
+            <a href="/flashcards" class="btn btn-secondary" style="text-decoration:none;justify-content:center;">
+                Create Flashcards
+                {% if data.due_flashcards > 0 %}
+                <span class="tag tag-orange" style="margin-left:8px;">{{ data.due_flashcards }} due</span>
+                {% endif %}
+            </a>
+            <a href="/study-plan" class="btn btn-secondary" style="text-decoration:none;justify-content:center;">
+                Create Study Plan
+            </a>
+            <a href="/pdf" class="btn btn-secondary" style="text-decoration:none;justify-content:center;">
+                Upload & Study PDF
+            </a>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="card">
+        <h2>Recent Activity</h2>
+        {% if data.recent_activity %}
+        <div style="display:flex;flex-direction:column;gap:8px;">
+            {% for item in data.recent_activity %}
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #1E2235;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    {% if item.type == 'quiz' %}
+                    <span class="tag tag-purple">Quiz</span>
+                    {% elif item.type == 'flashcard' %}
+                    <span class="tag tag-green">Flashcard</span>
+                    {% elif item.type == 'note' %}
+                    <span class="tag tag-blue">Note</span>
+                    {% endif %}
+                    <span style="font-size:0.85rem;">{{ item.title or 'Untitled' }}</span>
+                </div>
+                <span style="font-size:0.75rem;color:#64748B;">
+                    {% if item.type == 'quiz' %}{{ item.detail }}%{% else %}{{ item.detail }}{% endif %}
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="icon">&#128218;</div>
+            <p>No activity yet. Start studying to see your progress here!</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Platform Features -->
+<div class="card" style="margin-top:4px;">
+    <h2>Platform Features</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:16px;margin-top:12px;">
+        <a href="/ask" style="text-decoration:none;">
+            <div style="background:#0B0D1A;border:1px solid #1E2235;border-radius:8px;padding:16px;transition:border-color 0.2s;cursor:pointer;" onmouseover="this.style.borderColor='#7C3AED'" onmouseout="this.style.borderColor='#1E2235'">
+                <div style="font-size:1.3rem;margin-bottom:8px;">&#10148;</div>
+                <div style="font-weight:700;color:#E2E8F0;font-size:0.9rem;">Ask AI</div>
+                <div style="color:#64748B;font-size:0.75rem;margin-top:4px;">Get instant answers to any question</div>
+            </div>
+        </a>
+        <a href="/pdf" style="text-decoration:none;">
+            <div style="background:#0B0D1A;border:1px solid #1E2235;border-radius:8px;padding:16px;transition:border-color 0.2s;cursor:pointer;" onmouseover="this.style.borderColor='#7C3AED'" onmouseout="this.style.borderColor='#1E2235'">
+                <div style="font-size:1.3rem;margin-bottom:8px;">&#128196;</div>
+                <div style="font-weight:700;color:#E2E8F0;font-size:0.9rem;">PDF Study</div>
+                <div style="color:#64748B;font-size:0.75rem;margin-top:4px;">Upload PDFs and ask questions</div>
+            </div>
+        </a>
+        <a href="/flashcards" style="text-decoration:none;">
+            <div style="background:#0B0D1A;border:1px solid #1E2235;border-radius:8px;padding:16px;transition:border-color 0.2s;cursor:pointer;" onmouseover="this.style.borderColor='#7C3AED'" onmouseout="this.style.borderColor='#1E2235'">
+                <div style="font-size:1.3rem;margin-bottom:8px;">&#9878;</div>
+                <div style="font-weight:700;color:#E2E8F0;font-size:0.9rem;">Flashcards</div>
+                <div style="color:#64748B;font-size:0.75rem;margin-top:4px;">Generate & review with spaced repetition</div>
+            </div>
+        </a>
+        <a href="/quiz" style="text-decoration:none;">
+            <div style="background:#0B0D1A;border:1px solid #1E2235;border-radius:8px;padding:16px;transition:border-color 0.2s;cursor:pointer;" onmouseover="this.style.borderColor='#7C3AED'" onmouseout="this.style.borderColor='#1E2235'">
+                <div style="font-size:1.3rem;margin-bottom:8px;">&#10004;</div>
+                <div style="font-weight:700;color:#E2E8F0;font-size:0.9rem;">Quizzes</div>
+                <div style="color:#64748B;font-size:0.75rem;margin-top:4px;">AI-generated MCQ quizzes</div>
+            </div>
+        </a>
+        <a href="/notes" style="text-decoration:none;">
+            <div style="background:#0B0D1A;border:1px solid #1E2235;border-radius:8px;padding:16px;transition:border-color 0.2s;cursor:pointer;" onmouseover="this.style.borderColor='#7C3AED'" onmouseout="this.style.borderColor='#1E2235'">
+                <div style="font-size:1.3rem;margin-bottom:8px;">&#9997;</div>
+                <div style="font-weight:700;color:#E2E8F0;font-size:0.9rem;">Smart Notes</div>
+                <div style="color:#64748B;font-size:0.75rem;margin-top:4px;">Convert lectures into notes</div>
+            </div>
+        </a>
+        <a href="/study-plan" style="text-decoration:none;">
+            <div style="background:#0B0D1A;border:1px solid #1E2235;border-radius:8px;padding:16px;transition:border-color 0.2s;cursor:pointer;" onmouseover="this.style.borderColor='#7C3AED'" onmouseout="this.style.borderColor='#1E2235'">
+                <div style="font-size:1.3rem;margin-bottom:8px;">&#128197;</div>
+                <div style="font-weight:700;color:#E2E8F0;font-size:0.9rem;">Study Plans</div>
+                <div style="color:#64748B;font-size:0.75rem;margin-top:4px;">AI-powered study schedules</div>
+            </div>
+        </a>
+        <a href="/predict" style="text-decoration:none;">
+            <div style="background:#0B0D1A;border:1px solid #1E2235;border-radius:8px;padding:16px;transition:border-color 0.2s;cursor:pointer;" onmouseover="this.style.borderColor='#7C3AED'" onmouseout="this.style.borderColor='#1E2235'">
+                <div style="font-size:1.3rem;margin-bottom:8px;">&#9733;</div>
+                <div style="font-weight:700;color:#E2E8F0;font-size:0.9rem;">Predict Topics</div>
+                <div style="color:#64748B;font-size:0.75rem;margin-top:4px;">Predict important exam topics</div>
+            </div>
+        </a>
+        <a href="/progress" style="text-decoration:none;">
+            <div style="background:#0B0D1A;border:1px solid #1E2235;border-radius:8px;padding:16px;transition:border-color 0.2s;cursor:pointer;" onmouseover="this.style.borderColor='#7C3AED'" onmouseout="this.style.borderColor='#1E2235'">
+                <div style="font-size:1.3rem;margin-bottom:8px;">&#128200;</div>
+                <div style="font-weight:700;color:#E2E8F0;font-size:0.9rem;">Progress</div>
+                <div style="color:#64748B;font-size:0.75rem;margin-top:4px;">Track learning & detect weak areas</div>
+            </div>
+        </a>
+    </div>
+</div>
+{% endblock %}

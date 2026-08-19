@@ -1,3 +1,7 @@
 Flask==2.3.3
 groq
 python-dotenv==1.0.1
+markdown
+PyPDF2
+pymupdf
+Werkzeug>=2.3.0

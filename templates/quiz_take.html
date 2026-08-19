@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block title %}Intellect AI - {{ quiz.topic }} Quiz{% endblock %}
+{% block page_title %}Take Quiz{% endblock %}
+
+{% block extra_css %}
+.quiz-header {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px; margin-bottom: 24px;
+}
+.quiz-header-info h2 { font-size: 1.2rem; font-weight: 700; margin-bottom: 6px; }
+.quiz-header-tags { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.timer-box {
+    display: flex; align-items: center; gap: 8px; background: #131629;
+    border: 1px solid #1E2235; border-radius: 10px; padding: 10px 18px;
+    font-size: 1.1rem; font-weight: 700; color: #A855F7; font-variant-numeric: tabular-nums;
+}
+.timer-icon { font-size: 1.2rem; }
+.question-block {
+    background: #131629; border: 1px solid #1E2235; border-radius: 12px;
+    padding: 24px; margin-bottom: 20px;
+}
+.question-number {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; background: #1a1040; color: #A855F7;
+    border-radius: 50%; font-size: 0.85rem; font-weight: 700; margin-right: 10px;
+    flex-shrink: 0;
+}
+.question-text {
+    font-size: 1rem; font-weight: 600; color: #E2E8F0; margin-bottom: 16px;
+    display: flex; align-items: flex-start;
+}
+.question-text span { line-height: 1.6; }
+.options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.option-card {
+    display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+    background: #0B0D1A; border: 2px solid #1E2235; border-radius: 10px;
+    cursor: pointer; transition: all 0.2s; position: relative;
+}
+.option-card:hover { border-color: #3D2A6E; background: #0F1125; }
+.option-card.selected { border-color: #A855F7; background: #1a1040; }
+.option-card input[type="radio"] {
+    position: absolute; opacity: 0; width: 0; height: 0;
+}
+.option-letter {
+    display: flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 50%; background: #1E2235;
+    color: #94A3B8; font-size: 0.8rem; font-weight: 700; flex-shrink: 0;
+    transition: all 0.2s;
+}
+.option-card.selected .option-letter {
+    background: #A855F7; color: #fff;
+}
+.option-label { font-size: 0.9rem; color: #CBD5E1; line-height: 1.4; }
+.submit-bar {
+    position: sticky; bottom: 0; background: #0B0D1A; border-top: 1px solid #1E2235;
+    padding: 16px 0; display: flex; align-items: center; justify-content: space-between;
+    margin-top: 12px;
+}
+.progress-text { font-size: 0.85rem; color: #64748B; }
+@media (max-width: 768px) {
+    .options-grid { grid-template-columns: 1fr; }
+    .quiz-header { flex-direction: column; align-items: flex-start; }
+}
+{% endblock %}
+
+{% block content %}
+<!-- Quiz Header -->
+<div class="quiz-header">
+    <div class="quiz-header-info">
+        <h2>{{ quiz.topic }}</h2>
+        <div class="quiz-header-tags">
+            {% if quiz.subject %}
+            <span class="tag tag-purple">{{ quiz.subject }}</span>
+            {% endif %}
+            <span class="tag {% if quiz.difficulty == 'easy' %}tag-green{% elif quiz.difficulty == 'medium' %}tag-orange{% else %}tag-red{% endif %}">
+                {{ quiz.difficulty|capitalize }}
+            </span>
+            <span class="tag" style="background:#1E2235;color:#94A3B8;">{{ quiz.total_questions }} Questions</span>
+        </div>
+    </div>
+    <div class="timer-box">
+        <span class="timer-icon">&#9200;</span>
+        <span id="timerDisplay">00:00</span>
+    </div>
+</div>
+
+<!-- Quiz Form -->
+<form method="POST" action="/quiz/submit/{{ quiz.id }}" id="quizForm">
+    <input type="hidden" name="time_taken" id="timeTaken" value="0">
+
+    {% for question in questions %}
+    <div class="question-block" id="qblock-{{ question.id }}">
+        <div class="question-text">
+            <span class="question-number">{{ loop.index }}</span>
+            <span>{{ question.question }}</span>
+        </div>
+        <div class="options-grid">
+            <label class="option-card" data-question="{{ question.id }}">
+                <input type="radio" name="q_{{ question.id }}" value="A" required>
+                <span class="option-letter">A</span>
+                <span class="option-label">{{ question.option_a }}</span>
+            </label>
+            <label class="option-card" data-question="{{ question.id }}">
+                <input type="radio" name="q_{{ question.id }}" value="B">
+                <span class="option-letter">B</span>
+                <span class="option-label">{{ question.option_b }}</span>
+            </label>
+            <label class="option-card" data-question="{{ question.id }}">
+                <input type="radio" name="q_{{ question.id }}" value="C">
+                <span class="option-letter">C</span>
+                <span class="option-label">{{ question.option_c }}</span>
+            </label>
+            <label class="option-card" data-question="{{ question.id }}">
+                <input type="radio" name="q_{{ question.id }}" value="D">
+                <span class="option-letter">D</span>
+                <span class="option-label">{{ question.option_d }}</span>
+            </label>
+        </div>
+    </div>
+    {% endfor %}
+
+    <div class="submit-bar">
+        <span class="progress-text" id="progressText">0 of {{ questions|length }} answered</span>
+        <button type="submit" class="btn btn-primary">
+            &#10004; Submit Quiz
+        </button>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    // Timer
+    let seconds = 0;
+    const timerDisplay = document.getElementById('timerDisplay');
+    const timeTakenInput = document.getElementById('timeTaken');
+
+    const timerInterval = setInterval(function() {
+        seconds++;
+        timeTakenInput.value = seconds;
+        const mins = String(Math.floor(seconds / 60)).padStart(2, '0');
+        const secs = String(seconds % 60).padStart(2, '0');
+        timerDisplay.textContent = mins + ':' + secs;
+    }, 1000);
+
+    // Option card selection styling
+    const optionCards = document.querySelectorAll('.option-card');
+    optionCards.forEach(function(card) {
+        card.addEventListener('click', function() {
+            const questionId = this.getAttribute('data-question');
+            // Remove selected class from siblings
+            document.querySelectorAll('.option-card[data-question="' + questionId + '"]').forEach(function(sibling) {
+                sibling.classList.remove('selected');
+            });
+            // Add selected class to clicked card
+            this.classList.add('selected');
+            // Update progress
+            updateProgress();
+        });
+    });
+
+    // Progress tracking
+    const totalQuestions = {{ questions|length }};
+    const progressText = document.getElementById('progressText');
+
+    function updateProgress() {
+        let answered = 0;
+        const questionBlocks = document.querySelectorAll('.question-block');
+        questionBlocks.forEach(function(block) {
+            const radios = block.querySelectorAll('input[type="radio"]');
+            for (let i = 0; i < radios.length; i++) {
+                if (radios[i].checked) { answered++; break; }
+            }
+        });
+        progressText.textContent = answered + ' of ' + totalQuestions + ' answered';
+    }
+
+    // Confirm before leaving page
+    window.addEventListener('beforeunload', function(e) {
+        e.preventDefault();
+        e.returnValue = '';
+    });
+
+    // Remove beforeunload on form submit
+    document.getElementById('quizForm').addEventListener('submit', function() {
+        window.removeEventListener('beforeunload', function() {});
+        clearInterval(timerInterval);
+    });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,395 @@
+{% extends "base.html" %}
+{% block title %}Intellect AI - Flashcards{% endblock %}
+{% block page_title %}Flashcards{% endblock %}
+
+{% block extra_css %}
+/* Flashcard flip */
+.flashcard {
+    perspective: 800px;
+    cursor: pointer;
+    min-height: 180px;
+}
+.flashcard-inner {
+    position: relative;
+    width: 100%;
+    min-height: 180px;
+    transition: transform 0.5s;
+    transform-style: preserve-3d;
+}
+.flashcard.flipped .flashcard-inner {
+    transform: rotateY(180deg);
+}
+.flashcard-face {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+    background: #131629;
+    border: 1px solid #1E2235;
+    border-radius: 12px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+.flashcard-front {
+    z-index: 2;
+}
+.flashcard-back {
+    transform: rotateY(180deg);
+    background: #191d38;
+    border-color: #7C3AED;
+}
+.flashcard-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #64748B;
+    margin-bottom: 12px;
+    font-weight: 700;
+}
+.flashcard-text {
+    font-size: 1rem;
+    line-height: 1.6;
+    color: #E2E8F0;
+}
+.flashcard-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+}
+.confidence-btns {
+    display: none;
+    gap: 6px;
+    justify-content: center;
+    margin-top: 12px;
+    flex-wrap: wrap;
+}
+.flashcard.flipped .confidence-btns {
+    display: flex;
+}
+.conf-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: 2px solid #1E2235;
+    background: #0B0D1A;
+    color: #94A3B8;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Inter', sans-serif;
+}
+.conf-btn:hover {
+    border-color: #A855F7;
+    color: #A855F7;
+    transform: scale(1.15);
+}
+.conf-btn.rated {
+    background: #7C3AED;
+    border-color: #A855F7;
+    color: #fff;
+    pointer-events: none;
+}
+.conf-labels {
+    display: none;
+    justify-content: space-between;
+    font-size: 0.65rem;
+    color: #475569;
+    margin-top: 4px;
+    padding: 0 2px;
+}
+.flashcard.flipped .conf-labels {
+    display: flex;
+}
+.review-card-wrapper {
+    transition: opacity 0.4s, transform 0.4s;
+}
+.review-card-wrapper.done {
+    opacity: 0.4;
+    transform: scale(0.97);
+    pointer-events: none;
+}
+/* Topic group */
+.topic-group {
+    margin-bottom: 24px;
+}
+.topic-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+.topic-header h3 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #E2E8F0;
+}
+.topic-count {
+    font-size: 0.75rem;
+    color: #64748B;
+}
+.mini-card {
+    background: #0B0D1A;
+    border: 1px solid #1E2235;
+    border-radius: 8px;
+    padding: 14px;
+    transition: border-color 0.2s;
+}
+.mini-card:hover {
+    border-color: #7C3AED;
+}
+.mini-card-q {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #E2E8F0;
+    margin-bottom: 6px;
+}
+.mini-card-a {
+    font-size: 0.8rem;
+    color: #64748B;
+    line-height: 1.5;
+}
+.mini-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 10px;
+}
+.difficulty-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+.difficulty-dot.easy { background: #22C55E; }
+.difficulty-dot.medium { background: #F59E0B; }
+.difficulty-dot.hard { background: #EF4444; }
+{% endblock %}
+
+{% block content %}
+<!-- Stats Row -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="value">{{ stats.total }}</div>
+        <div class="label">Total Cards</div>
+    </div>
+    <div class="stat-card orange">
+        <div class="value">{{ stats.due }}</div>
+        <div class="label">Due for Review</div>
+    </div>
+    <div class="stat-card blue">
+        <div class="value">{{ stats.avg_confidence }}%</div>
+        <div class="label">Avg Confidence</div>
+    </div>
+    <div class="stat-card green">
+        <div class="value">{{ stats.mastered }}</div>
+        <div class="label">Mastered</div>
+    </div>
+</div>
+
+<div class="grid-2">
+    <!-- Generate Flashcards Form -->
+    <div class="card">
+        <h2>&#10022; Generate Flashcards</h2>
+        <form method="POST" action="/flashcards/generate" id="generateForm">
+            <div class="form-group">
+                <label for="topic">Topic *</label>
+                <input type="text" id="topic" name="topic" class="form-input" placeholder="e.g. Photosynthesis, Newton's Laws" required>
+            </div>
+            <div class="form-group">
+                <label for="subject">Subject</label>
+                <input type="text" id="subject" name="subject" class="form-input" placeholder="e.g. Biology, Physics">
+            </div>
+            <div class="form-group">
+                <label for="count">Number of Cards</label>
+                <input type="number" id="count" name="count" class="form-input" value="10" min="5" max="20">
+            </div>
+            <div class="form-group">
+                <label for="context">Study Material (optional)</label>
+                <textarea id="context" name="context" class="form-textarea" placeholder="Paste your notes, textbook content, or lecture transcript here to generate more relevant flashcards..." rows="4"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;" id="generateBtn">
+                &#10022; Generate Flashcards
+            </button>
+            <div class="loading" id="generateLoading" style="justify-content:center;margin-top:12px;">
+                <div class="spinner"></div>
+                <span>Generating flashcards...</span>
+            </div>
+        </form>
+    </div>
+
+    <!-- Review Section -->
+    <div class="card">
+        <h2>&#9878; Review Due Cards
+            {% if due_cards %}
+            <span class="tag tag-orange" style="margin-left:8px;vertical-align:middle;">{{ due_cards|length }} due</span>
+            {% endif %}
+        </h2>
+        {% if due_cards %}
+        <div id="reviewArea" style="display:flex;flex-direction:column;gap:16px;">
+            {% for card in due_cards %}
+            <div class="review-card-wrapper" id="review-{{ card.id }}">
+                <div class="flashcard" onclick="flipCard(this)">
+                    <div class="flashcard-inner">
+                        <div class="flashcard-face flashcard-front">
+                            <div class="flashcard-label">Question</div>
+                            <div class="flashcard-text">{{ card.front }}</div>
+                            <div class="flashcard-meta">
+                                <span class="tag tag-purple">{{ card.topic }}</span>
+                                {% if card.difficulty == 'easy' %}
+                                <span class="tag tag-green">Easy</span>
+                                {% elif card.difficulty == 'medium' %}
+                                <span class="tag tag-orange">Medium</span>
+                                {% elif card.difficulty == 'hard' %}
+                                <span class="tag tag-red">Hard</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="flashcard-face flashcard-back">
+                            <div class="flashcard-label">Answer</div>
+                            <div class="flashcard-text">{{ card.back }}</div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Confidence rating -->
+                <div class="confidence-btns" id="conf-btns-{{ card.id }}" style="display:none;">
+                    <button class="conf-btn" onclick="event.stopPropagation();rateCard({{ card.id }}, 1, this)">1</button>
+                    <button class="conf-btn" onclick="event.stopPropagation();rateCard({{ card.id }}, 2, this)">2</button>
+                    <button class="conf-btn" onclick="event.stopPropagation();rateCard({{ card.id }}, 3, this)">3</button>
+                    <button class="conf-btn" onclick="event.stopPropagation();rateCard({{ card.id }}, 4, this)">4</button>
+                    <button class="conf-btn" onclick="event.stopPropagation();rateCard({{ card.id }}, 5, this)">5</button>
+                </div>
+                <div class="conf-labels" id="conf-labels-{{ card.id }}" style="display:none;">
+                    <span>Forgot</span>
+                    <span>Perfect</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div id="reviewComplete" style="display:none;" class="empty-state">
+            <div class="icon">&#127881;</div>
+            <p style="color:#22C55E;font-weight:600;">All cards reviewed! Great job!</p>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="icon">&#10024;</div>
+            <p>No cards due for review right now.</p>
+            <p style="margin-top:6px;font-size:0.8rem;">Generate new flashcards or check back later.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- All Cards Section -->
+<div class="card" style="margin-top:20px;">
+    <h2>&#128218; All Flashcards
+        {% if cards %}
+        <span style="font-weight:400;color:#64748B;font-size:0.85rem;margin-left:8px;">{{ cards|length }} total</span>
+        {% endif %}
+    </h2>
+    {% if cards %}
+    {% set ns = namespace(current_topic='') %}
+    {% set grouped = {} %}
+    {% for card in cards %}
+        {% if card.topic not in grouped %}
+            {% set _ = grouped.update({card.topic: []}) %}
+        {% endif %}
+        {% set _ = grouped[card.topic].append(card) %}
+    {% endfor %}
+    {% for topic, topic_cards in grouped.items() %}
+    <div class="topic-group">
+        <div class="topic-header">
+            <span class="tag tag-purple">{{ topic }}</span>
+            <span class="topic-count">{{ topic_cards|length }} card{{ 's' if topic_cards|length != 1 else '' }}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:12px;">
+            {% for card in topic_cards %}
+            <div class="mini-card">
+                <div class="mini-card-q">Q: {{ card.front }}</div>
+                <div class="mini-card-a">A: {{ card.back }}</div>
+                <div class="mini-card-footer">
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <span class="difficulty-dot {{ card.difficulty }}"></span>
+                        <span style="font-size:0.7rem;color:#64748B;text-transform:capitalize;">{{ card.difficulty }}</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <span style="font-size:0.7rem;color:#64748B;" title="Times reviewed">&#128257; {{ card.times_reviewed }}</span>
+                        <span style="font-size:0.7rem;color:#64748B;" title="Confidence">&#127919; {{ card.confidence }}%</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty-state">
+        <div class="icon">&#9878;</div>
+        <p>No flashcards yet.</p>
+        <p style="margin-top:6px;font-size:0.8rem;">Use the form above to generate your first set of flashcards!</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Show loading on generate
+document.getElementById('generateForm').addEventListener('submit', function() {
+    document.getElementById('generateBtn').style.display = 'none';
+    document.getElementById('generateLoading').classList.add('active');
+});
+
+// Flip a flashcard
+function flipCard(el) {
+    el.classList.toggle('flipped');
+    var cardId = el.closest('.review-card-wrapper').id.replace('review-', '');
+    var btns = document.getElementById('conf-btns-' + cardId);
+    var labels = document.getElementById('conf-labels-' + cardId);
+    if (el.classList.contains('flipped')) {
+        btns.style.display = 'flex';
+        labels.style.display = 'flex';
+    } else {
+        btns.style.display = 'none';
+        labels.style.display = 'none';
+    }
+}
+
+// Rate a card's confidence
+var reviewedCount = 0;
+var totalDue = document.querySelectorAll('.review-card-wrapper').length;
+
+function rateCard(id, confidence, btnEl) {
+    // Mark button as rated
+    var siblings = btnEl.parentElement.querySelectorAll('.conf-btn');
+    siblings.forEach(function(b) { b.classList.remove('rated'); });
+    btnEl.classList.add('rated');
+
+    // Send review to server
+    fetch('/flashcards/review', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'card_id=' + id + '&confidence=' + confidence
+    }).then(function(response) {
+        if (response.ok) {
+            // Fade out the card wrapper
+            var wrapper = document.getElementById('review-' + id);
+            setTimeout(function() {
+                wrapper.classList.add('done');
+                reviewedCount++;
+                // Check if all done
+                if (reviewedCount >= totalDue) {
+                    document.getElementById('reviewComplete').style.display = 'block';
+                }
+            }, 400);
+        }
+    }).catch(function(err) {
+        console.error('Review failed:', err);
+    });
+}
+</script>
+{% endblock %}

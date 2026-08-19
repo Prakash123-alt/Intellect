@@ -2,3 +2,11 @@ aiapp/
 .env
 __pycache__/
 *.pyc
+
+# Data and runtime files
+data/
+uploads/
+logs/
+exports/
+*.db
+*.log

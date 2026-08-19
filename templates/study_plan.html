@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+{% block title %}Intellect AI - Study Plan{% endblock %}
+{% block page_title %}Study Plan{% endblock %}
+
+{% block extra_css %}
+.plan-container { max-width: 960px; }
+
+.plan-form-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+}
+.plan-form-grid .full-width { grid-column: 1 / -1; }
+
+.plans-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+
+.plan-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; background: #0B0D1A; border: 1px solid #1E2235;
+    border-radius: 10px; transition: border-color 0.2s;
+}
+.plan-item:hover { border-color: #7C3AED; }
+.plan-item-left { display: flex; align-items: center; gap: 14px; }
+.plan-item-icon {
+    width: 38px; height: 38px; border-radius: 8px; background: #1a1040;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem; color: #A855F7; flex-shrink: 0;
+}
+.plan-item-info h3 { font-size: 0.9rem; font-weight: 600; color: #E2E8F0; margin-bottom: 3px; }
+.plan-item-info span { font-size: 0.75rem; color: #64748B; }
+.plan-item-right { display: flex; align-items: center; gap: 10px; }
+
+/* Selected plan detail */
+.plan-detail { margin-top: 24px; animation: fadeSlideIn 0.4s ease; }
+.plan-detail-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid #1E2235;
+}
+.plan-detail-header h2 { margin-bottom: 0; }
+
+.plan-summary {
+    background: #0B0D1A; border: 1px solid #1E2235; border-radius: 10px;
+    padding: 16px; margin-bottom: 20px; color: #CBD5E1; font-size: 0.9rem;
+    line-height: 1.7;
+}
+
+.plan-stats {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px; margin-bottom: 20px;
+}
+.plan-stat {
+    background: #0B0D1A; border: 1px solid #1E2235; border-radius: 8px;
+    padding: 14px; text-align: center;
+}
+.plan-stat .val { font-size: 1.4rem; font-weight: 800; color: #A855F7; }
+.plan-stat .lbl { font-size: 0.75rem; color: #64748B; margin-top: 2px; }
+
+/* Timeline table */
+.timeline-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+.timeline-table th {
+    text-align: left; padding: 10px 14px; font-size: 0.8rem; font-weight: 700;
+    color: #A855F7; border-bottom: 2px solid #1E2235; text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.timeline-table td {
+    padding: 12px 14px; font-size: 0.85rem; color: #CBD5E1;
+    border-bottom: 1px solid #1E2235; vertical-align: top;
+}
+.timeline-table tr:nth-child(even) td { background: #0E1025; }
+.timeline-table tr:hover td { background: #161938; }
+.timeline-table .day-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; border-radius: 50%; background: #1a1040;
+    color: #A855F7; font-weight: 700; font-size: 0.85rem;
+}
+.timeline-table .topic-tag {
+    display: inline-block; background: #1a1040; color: #C084FC; padding: 3px 9px;
+    border-radius: 6px; font-size: 0.78rem; font-weight: 500; margin: 2px 3px 2px 0;
+}
+.timeline-table .hours-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: #064E3B; color: #6EE7B7; padding: 4px 10px;
+    border-radius: 6px; font-size: 0.8rem; font-weight: 600;
+}
+
+/* Tips */
+.tips-section { margin-top: 20px; }
+.tip-item {
+    display: flex; align-items: flex-start; gap: 10px; padding: 10px 0;
+    border-bottom: 1px solid #1E2235; font-size: 0.85rem; color: #CBD5E1;
+}
+.tip-item:last-child { border-bottom: none; }
+.tip-bullet {
+    width: 22px; height: 22px; border-radius: 50%; background: #1a1040;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.7rem; color: #A855F7; flex-shrink: 0; margin-top: 1px;
+}
+
+@keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 768px) {
+    .plan-form-grid { grid-template-columns: 1fr; }
+    .plan-stats { grid-template-columns: 1fr 1fr; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="plan-container">
+    <!-- Create Study Plan Form -->
+    <div class="card">
+        <h2>&#128197; Generate Study Plan</h2>
+        <p style="color:#64748B;font-size:0.82rem;margin-bottom:16px;">
+            Enter your subject details and let AI create a personalized day-by-day study schedule for you.
+        </p>
+        <form method="POST" action="/study-plan/create" id="planForm">
+            <div class="plan-form-grid">
+                <div class="form-group">
+                    <label for="subject">Subject</label>
+                    <input type="text" name="subject" id="subject" class="form-input"
+                           placeholder="e.g. Data Structures & Algorithms" required>
+                </div>
+                <div class="form-group">
+                    <label for="exam_date">Exam Date</label>
+                    <input type="date" name="exam_date" id="exam_date" class="form-input" required>
+                </div>
+                <div class="form-group full-width">
+                    <label for="topics">Topics to Cover</label>
+                    <textarea name="topics" id="topics" class="form-textarea"
+                              placeholder="Enter topics separated by commas, e.g. Arrays, Linked Lists, Trees, Graphs, Sorting, Dynamic Programming"
+                              required style="min-height:90px;"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="hours_per_day">Hours Per Day</label>
+                    <input type="number" name="hours_per_day" id="hours_per_day" class="form-input"
+                           value="2" min="1" max="12" required>
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;margin-top:4px;">
+                <button type="submit" class="btn btn-primary" id="submitBtn" onclick="showLoading()">
+                    &#10024; Generate Study Plan
+                </button>
+                <span class="loading" id="loadingIndicator">
+                    <span class="spinner"></span>
+                    Generating plan...
+                </span>
+            </div>
+        </form>
+    </div>
+
+    <!-- Existing Plans List -->
+    <div class="card" style="margin-top:20px;">
+        <h2>&#128218; Your Study Plans</h2>
+        {% if plans %}
+        <div class="plans-list">
+            {% for plan in plans %}
+            <a href="/study-plan/{{ plan.id }}" style="text-decoration:none;color:inherit;">
+                <div class="plan-item">
+                    <div class="plan-item-left">
+                        <div class="plan-item-icon">&#128197;</div>
+                        <div class="plan-item-info">
+                            <h3>{{ plan.subject }}</h3>
+                            <span>Exam: {{ plan.exam_date }} &middot; {{ plan.hours_per_day }}h/day</span>
+                        </div>
+                    </div>
+                    <div class="plan-item-right">
+                        {% if plan.status == 'active' %}
+                        <span class="tag tag-green">Active</span>
+                        {% elif plan.status == 'completed' %}
+                        <span class="tag tag-blue">Completed</span>
+                        {% else %}
+                        <span class="tag tag-purple">{{ plan.status|capitalize }}</span>
+                        {% endif %}
+                        <span style="font-size:0.75rem;color:#64748B;">{{ plan.created_at }}</span>
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="icon">&#128197;</div>
+            <p>No study plans yet. Create your first plan above to get started!</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Selected Plan Detail View -->
+    {% if selected_plan %}
+    <div class="plan-detail">
+        <div class="card">
+            <div class="plan-detail-header">
+                <div>
+                    <h2>&#128203; {{ selected_plan.subject }}</h2>
+                    <p style="color:#64748B;font-size:0.82rem;margin-top:4px;">
+                        Exam: {{ selected_plan.exam_date }} &middot; {{ selected_plan.hours_per_day }} hours/day
+                        {% if selected_plan.status == 'active' %}
+                        <span class="tag tag-green" style="margin-left:8px;">Active</span>
+                        {% elif selected_plan.status == 'completed' %}
+                        <span class="tag tag-blue" style="margin-left:8px;">Completed</span>
+                        {% else %}
+                        <span class="tag tag-purple" style="margin-left:8px;">{{ selected_plan.status|capitalize }}</span>
+                        {% endif %}
+                    </p>
+                </div>
+                <a href="/study-plan" class="btn btn-secondary btn-sm">&#8592; All Plans</a>
+            </div>
+
+            {% if selected_plan.plan_data %}
+            <!-- Summary -->
+            {% if selected_plan.plan_data.summary %}
+            <div class="plan-summary">
+                {{ selected_plan.plan_data.summary }}
+            </div>
+            {% endif %}
+
+            <!-- Plan Stats -->
+            <div class="plan-stats">
+                <div class="plan-stat">
+                    <div class="val">{{ selected_plan.plan_data.total_days }}</div>
+                    <div class="lbl">Total Days</div>
+                </div>
+                <div class="plan-stat">
+                    <div class="val">{{ selected_plan.hours_per_day }}h</div>
+                    <div class="lbl">Hours / Day</div>
+                </div>
+                <div class="plan-stat">
+                    <div class="val" style="color:#22C55E;">{{ selected_plan.plan_data.revision_days }}</div>
+                    <div class="lbl">Revision Days</div>
+                </div>
+                <div class="plan-stat">
+                    <div class="val" style="color:#3B82F6;">
+                        {{ selected_plan.plan_data.daily_plan|length }}
+                    </div>
+                    <div class="lbl">Scheduled Days</div>
+                </div>
+            </div>
+
+            <!-- Daily Plan Timeline -->
+            <h3 style="font-size:1rem;font-weight:700;margin-bottom:12px;">&#128197; Daily Schedule</h3>
+            {% if selected_plan.plan_data.daily_plan %}
+            <div style="overflow-x:auto;">
+                <table class="timeline-table">
+                    <thead>
+                        <tr>
+                            <th>Day</th>
+                            <th>Date</th>
+                            <th>Topics</th>
+                            <th>Activities</th>
+                            <th>Hours</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in selected_plan.plan_data.daily_plan %}
+                        <tr>
+                            <td>
+                                <span class="day-badge">{{ entry.day }}</span>
+                            </td>
+                            <td style="white-space:nowrap;color:#94A3B8;">{{ entry.date }}</td>
+                            <td>
+                                {% if entry.topics is string %}
+                                <span class="topic-tag">{{ entry.topics }}</span>
+                                {% else %}
+                                {% for topic in entry.topics %}
+                                <span class="topic-tag">{{ topic }}</span>
+                                {% endfor %}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if entry.activities is string %}
+                                {{ entry.activities }}
+                                {% else %}
+                                <ul style="margin:0;padding-left:16px;color:#94A3B8;">
+                                    {% for activity in entry.activities %}
+                                    <li style="margin-bottom:2px;">{{ activity }}</li>
+                                    {% endfor %}
+                                </ul>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="hours-badge">&#9201; {{ entry.hours }}h</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <p>No daily schedule data available.</p>
+            </div>
+            {% endif %}
+
+            <!-- Tips Section -->
+            {% if selected_plan.plan_data.tips %}
+            <div class="tips-section">
+                <h3 style="font-size:1rem;font-weight:700;margin-bottom:12px;">&#128161; Study Tips</h3>
+                <div style="background:#0B0D1A;border:1px solid #1E2235;border-radius:10px;padding:16px;">
+                    {% for tip in selected_plan.plan_data.tips %}
+                    <div class="tip-item">
+                        <span class="tip-bullet">{{ loop.index }}</span>
+                        <span>{{ tip }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% else %}
+            <div class="empty-state">
+                <div class="icon">&#9888;</div>
+                <p>Plan data could not be loaded. Try generating a new plan.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function showLoading() {
+        var subject = document.getElementById('subject').value.trim();
+        var topics = document.getElementById('topics').value.trim();
+        var examDate = document.getElementById('exam_date').value;
+        if (subject && topics && examDate) {
+            document.getElementById('submitBtn').style.display = 'none';
+            document.getElementById('loadingIndicator').classList.add('active');
+        }
+    }
+
+    // Set min date to today for exam_date input
+    (function() {
+        var today = new Date().toISOString().split('T')[0];
+        document.getElementById('exam_date').setAttribute('min', today);
+    })();
+</script>
+{% endblock %}

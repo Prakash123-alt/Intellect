@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% block title %}Intellect AI - Smart Notes{% endblock %}
+{% block page_title %}Smart Notes{% endblock %}
+
+{% block extra_css %}
+.notes-container { max-width: 960px; }
+
+.convert-form textarea {
+    min-height: 200px;
+    line-height: 1.7;
+}
+
+/* Notes list */
+.notes-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+
+.note-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; background: #0B0D1A; border: 1px solid #1E2235;
+    border-radius: 10px; transition: border-color 0.2s; text-decoration: none;
+    color: inherit;
+}
+.note-item:hover { border-color: #7C3AED; }
+.note-item-left { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.note-item-icon {
+    width: 38px; height: 38px; border-radius: 8px; background: #1a1040;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem; color: #A855F7; flex-shrink: 0;
+}
+.note-item-info { min-width: 0; }
+.note-item-info h3 {
+    font-size: 0.9rem; font-weight: 600; color: #E2E8F0; margin-bottom: 3px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.note-item-info span { font-size: 0.75rem; color: #64748B; }
+.note-item-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+/* Note detail view */
+.note-detail { margin-top: 24px; animation: fadeSlideIn 0.4s ease; }
+.note-detail-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid #1E2235;
+}
+.note-detail-header h2 { margin-bottom: 0; }
+.note-detail-meta {
+    display: flex; align-items: center; gap: 10px; margin-top: 6px;
+    flex-wrap: wrap;
+}
+
+/* Rendered markdown content */
+.note-content {
+    color: #CBD5E1; font-size: 0.9rem; line-height: 1.8;
+}
+.note-content h1, .note-content h2, .note-content h3,
+.note-content h4, .note-content h5, .note-content h6 {
+    color: #E2E8F0; margin: 20px 0 10px; font-weight: 700;
+}
+.note-content h1 { font-size: 1.4rem; border-bottom: 1px solid #1E2235; padding-bottom: 8px; }
+.note-content h2 { font-size: 1.2rem; border-bottom: 1px solid #1E2235; padding-bottom: 6px; }
+.note-content h3 { font-size: 1.05rem; }
+.note-content h4 { font-size: 0.95rem; color: #C084FC; }
+.note-content p { margin-bottom: 12px; }
+.note-content ul, .note-content ol {
+    margin: 8px 0 14px 20px;
+}
+.note-content li { margin-bottom: 5px; }
+.note-content li::marker { color: #7C3AED; }
+.note-content code {
+    background: #0B0D1A; color: #A855F7; padding: 2px 7px;
+    border-radius: 4px; font-size: 0.85em; font-family: 'Consolas', 'Monaco', monospace;
+}
+.note-content pre {
+    background: #0B0D1A; border: 1px solid #1E2235; border-radius: 8px;
+    padding: 16px; overflow-x: auto; margin: 14px 0;
+}
+.note-content pre code {
+    background: none; padding: 0; color: #E2E8F0;
+}
+.note-content strong { color: #E2E8F0; }
+.note-content em { color: #C084FC; font-style: italic; }
+.note-content blockquote {
+    border-left: 3px solid #7C3AED; padding: 10px 18px; margin: 14px 0;
+    background: #0B0D1A; border-radius: 0 8px 8px 0; color: #94A3B8;
+}
+.note-content hr {
+    border: none; border-top: 1px solid #1E2235; margin: 20px 0;
+}
+.note-content table {
+    width: 100%; border-collapse: collapse; margin: 14px 0;
+}
+.note-content table th {
+    background: #0B0D1A; color: #A855F7; font-weight: 600;
+    padding: 10px 12px; border: 1px solid #1E2235; text-align: left;
+    font-size: 0.85rem;
+}
+.note-content table td {
+    padding: 10px 12px; border: 1px solid #1E2235; color: #CBD5E1;
+    font-size: 0.85rem;
+}
+.note-content table tr:nth-child(even) td { background: #0E1025; }
+.note-content a { color: #A855F7; text-decoration: underline; }
+.note-content a:hover { color: #C084FC; }
+.note-content img { max-width: 100%; border-radius: 8px; margin: 12px 0; }
+
+/* Source type badge colors */
+.source-lecture { background: #1a1040; color: #C084FC; }
+.source-transcript { background: #1E3A5F; color: #93C5FD; }
+.source-material { background: #064E3B; color: #6EE7B7; }
+
+@keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+{% endblock %}
+
+{% block content %}
+<div class="notes-container">
+    <!-- Convert Lecture to Notes Form -->
+    <div class="card convert-form">
+        <h2>&#9997; Convert to Smart Notes</h2>
+        <p style="color:#64748B;font-size:0.82rem;margin-bottom:16px;">
+            Paste your lecture content, transcript, or study material and AI will transform it into well-structured, easy-to-review notes.
+        </p>
+        <form method="POST" action="/notes/convert" id="notesForm">
+            <div class="form-group">
+                <label for="title">Title</label>
+                <input type="text" name="title" id="title" class="form-input"
+                       placeholder="e.g. Chapter 5 - Sorting Algorithms" required>
+            </div>
+            <div class="form-group">
+                <label for="subject">Subject</label>
+                <input type="text" name="subject" id="subject" class="form-input"
+                       placeholder="e.g. Data Structures & Algorithms" required>
+            </div>
+            <div class="form-group">
+                <label for="lecture_text">Lecture Content</label>
+                <textarea name="lecture_text" id="lecture_text" class="form-textarea"
+                          placeholder="Paste your lecture content, transcript, or study material here..."
+                          required style="min-height:200px;"></textarea>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <button type="submit" class="btn btn-primary" id="submitBtn" onclick="showLoading()">
+                    &#10024; Convert to Notes
+                </button>
+                <span class="loading" id="loadingIndicator">
+                    <span class="spinner"></span>
+                    Converting...
+                </span>
+            </div>
+        </form>
+    </div>
+
+    <!-- Saved Notes List -->
+    <div class="card" style="margin-top:20px;">
+        <h2>&#128218; Your Notes</h2>
+        {% if notes %}
+        <div class="notes-list">
+            {% for note in notes %}
+            <a href="/notes?view={{ note.id }}" class="note-item">
+                <div class="note-item-left">
+                    <div class="note-item-icon">&#128196;</div>
+                    <div class="note-item-info">
+                        <h3>{{ note.title }}</h3>
+                        <span>{{ note.subject }}</span>
+                    </div>
+                </div>
+                <div class="note-item-right">
+                    {% if note.source_type == 'lecture' %}
+                    <span class="tag source-lecture">Lecture</span>
+                    {% elif note.source_type == 'transcript' %}
+                    <span class="tag source-transcript">Transcript</span>
+                    {% elif note.source_type == 'material' %}
+                    <span class="tag source-material">Material</span>
+                    {% else %}
+                    <span class="tag tag-purple">{{ note.source_type|capitalize if note.source_type else 'Note' }}</span>
+                    {% endif %}
+                    <span style="font-size:0.75rem;color:#64748B;">{{ note.created_at }}</span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="icon">&#9997;</div>
+            <p>No notes yet. Convert your first lecture above to get started!</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Selected Note Detail View -->
+    {% if selected_note %}
+    <div class="note-detail">
+        <div class="card">
+            <div class="note-detail-header">
+                <div>
+                    <h2>&#128196; {{ selected_note.title }}</h2>
+                    <div class="note-detail-meta">
+                        <span class="tag tag-purple">{{ selected_note.subject }}</span>
+                        {% if selected_note.source_type == 'lecture' %}
+                        <span class="tag source-lecture">Lecture</span>
+                        {% elif selected_note.source_type == 'transcript' %}
+                        <span class="tag source-transcript">Transcript</span>
+                        {% elif selected_note.source_type == 'material' %}
+                        <span class="tag source-material">Material</span>
+                        {% else %}
+                        <span class="tag tag-blue">{{ selected_note.source_type|capitalize if selected_note.source_type else 'Note' }}</span>
+                        {% endif %}
+                        <span style="font-size:0.75rem;color:#64748B;">Created: {{ selected_note.created_at }}</span>
+                    </div>
+                </div>
+                <a href="/notes" class="btn btn-secondary btn-sm">&#8592; All Notes</a>
+            </div>
+
+            <div class="note-content">
+                {{ selected_note.content_html|safe }}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function showLoading() {
+        var title = document.getElementById('title').value.trim();
+        var subject = document.getElementById('subject').value.trim();
+        var text = document.getElementById('lecture_text').value.trim();
+        if (title && subject && text) {
+            document.getElementById('submitBtn').style.display = 'none';
+            document.getElementById('loadingIndicator').classList.add('active');
+        }
+    }
+</script>
+{% endblock %}

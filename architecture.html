@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Intellect AI - Data Pipeline Architecture</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0B0D1A; font-family: 'Segoe UI', sans-serif; color: #E2E8F0; padding: 40px; }
+        .title { text-align: center; margin-bottom: 10px; }
+        .title h1 { font-size: 1.6rem; color: #A855F7; }
+        .title p { color: #64748B; font-size: 0.9rem; }
+        .diagram { max-width: 1100px; margin: 30px auto; }
+        .layer { margin-bottom: 24px; }
+        .layer-label {
+            font-size: 0.7rem; text-transform: uppercase; letter-spacing: 2px;
+            color: #64748B; margin-bottom: 10px; font-weight: 700;
+        }
+        .row { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; }
+        .box {
+            background: #131629; border: 2px solid #7C3AED; border-radius: 12px;
+            padding: 16px 24px; text-align: center; min-width: 140px;
+        }
+        .box .name { font-weight: 700; font-size: 0.9rem; color: #E2E8F0; }
+        .box .sub { font-size: 0.7rem; color: #64748B; margin-top: 4px; }
+        .box.blue { border-color: #3B82F6; }
+        .box.green { border-color: #22C55E; }
+        .box.orange { border-color: #F59E0B; }
+        .box.purple { border-color: #7C3AED; }
+        .box.light-purple { border-color: #A855F7; }
+        .box.muted { border-color: #334155; }
+        .box.large { min-width: 300px; padding: 20px 40px; }
+        .side-box {
+            position: relative; display: flex; align-items: center;
+            justify-content: center; gap: 20px;
+        }
+        .side-arrow { color: #A855F7; font-size: 1.5rem; }
+        .flow-arrows {
+            display: flex; justify-content: center; gap: 60px; padding: 12px 0;
+        }
+        .flow-arrows .arr { color: #7C3AED; font-size: 1.3rem; }
+        .footer { text-align: center; margin-top: 40px; color: #334155; font-size: 0.75rem; }
+        .legend {
+            display: flex; gap: 20px; justify-content: center; margin-top: 30px;
+            flex-wrap: wrap;
+        }
+        .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #94A3B8; }
+        .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+        .legend-dot.blue { background: #3B82F6; }
+        .legend-dot.green { background: #22C55E; }
+        .legend-dot.orange { background: #F59E0B; }
+        .legend-dot.purple { background: #7C3AED; }
+    </style>
+</head>
+<body>
+    <div class="title">
+        <h1>INTELLECT AI - DATA PIPELINE ARCHITECTURE</h1>
+        <p>End-to-End Data Processing System</p>
+    </div>
+    <div class="diagram">
+        <div class="layer">
+            <div class="layer-label">Layer 1 - Data Sources</div>
+            <div class="row">
+                <div class="box blue">
+                    <div class="name">Web Browser</div>
+                    <div class="sub">Flask UI (Port 5000)</div>
+                </div>
+                <div class="box green">
+                    <div class="name">Flutter App</div>
+                    <div class="sub">Mobile / Web / Desktop</div>
+                </div>
+                <div class="box orange">
+                    <div class="name">REST API</div>
+                    <div class="sub">POST /api/ask</div>
+                </div>
+            </div>
+        </div>
+        <div class="flow-arrows">
+            <span class="arr">&#8595;</span>
+            <span class="arr">&#8595;</span>
+            <span class="arr">&#8595;</span>
+        </div>
+        <div class="layer">
+            <div class="layer-label">Layer 2 - Backend Processing</div>
+            <div class="side-box">
+                <div class="box purple large">
+                    <div class="name">Flask Backend (app.py)</div>
+                    <div class="sub">ask_groq() - Preprocessing - Pipeline Integration</div>
+                </div>
+                <span class="side-arrow">&#8596;</span>
+                <div class="box light-purple">
+                    <div class="name">Groq API</div>
+                    <div class="sub">Qwen 3.6 27B Model</div>
+                </div>
+            </div>
+        </div>
+        <div class="flow-arrows">
+            <span class="arr">&#8595;</span>
+        </div>
+        <div class="layer">
+            <div class="layer-label">Layer 3 - Pipeline Core (pipeline.py)</div>
+            <div class="row">
+                <div class="box purple">
+                    <div class="name">1. Preprocessing</div>
+                    <div class="sub">Clean text, strip tags<br>Keyword extraction</div>
+                </div>
+                <div class="box blue">
+                    <div class="name">2. Storage</div>
+                    <div class="sub">SQLite Database<br>Q&amp;A + Metadata</div>
+                </div>
+                <div class="box green">
+                    <div class="name">3. Analytics</div>
+                    <div class="sub">Topic classification<br>Sentiment analysis</div>
+                </div>
+                <div class="box orange">
+                    <div class="name">4. Stream</div>
+                    <div class="sub">Event logging<br>Multi-source tracking</div>
+                </div>
+                <div class="box light-purple">
+                    <div class="name">5. Export</div>
+                    <div class="sub">JSON / CSV<br>Training-ready data</div>
+                </div>
+            </div>
+        </div>
+        <div class="flow-arrows">
+            <span class="arr">&#8595;</span>
+            <span class="arr">&#8595;</span>
+            <span class="arr">&#8595;</span>
+            <span class="arr">&#8595;</span>
+            <span class="arr">&#8595;</span>
+        </div>
+        <div class="layer">
+            <div class="layer-label">Layer 4 - Outputs</div>
+            <div class="row">
+                <div class="box muted">
+                    <div class="name">Clean Response</div>
+                    <div class="sub">No think tags</div>
+                </div>
+                <div class="box muted">
+                    <div class="name">qa_data.db</div>
+                    <div class="sub">Persistent storage</div>
+                </div>
+                <div class="box muted">
+                    <div class="name">Dashboard</div>
+                    <div class="sub">/analytics page</div>
+                </div>
+                <div class="box muted">
+                    <div class="name">pipeline.log</div>
+                    <div class="sub">Real-time logs</div>
+                </div>
+                <div class="box muted">
+                    <div class="name">Training Data</div>
+                    <div class="sub">Fine-tune models</div>
+                </div>
+            </div>
+        </div>
+        <div class="legend">
+            <div class="legend-item"><div class="legend-dot blue"></div> Web / Storage</div>
+            <div class="legend-item"><div class="legend-dot green"></div> Mobile / Analytics</div>
+            <div class="legend-item"><div class="legend-dot orange"></div> API / Streaming</div>
+            <div class="legend-item"><div class="legend-dot purple"></div> Core Pipeline</div>
+        </div>
+    </div>
+    <div class="footer">Intellect AI 2026 | Flask + SQLite + Groq API + Flutter | Data Pipeline v1.0</div>
+</body>
+</html>

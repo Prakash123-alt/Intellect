@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}Intellect AI - Ask AI{% endblock %}
+{% block page_title %}Ask AI{% endblock %}
+
+{% block extra_css %}
+.ask-container { max-width: 860px; }
+
+.question-card textarea {
+    min-height: 130px;
+    resize: vertical;
+    line-height: 1.6;
+}
+
+.suggestion-chips {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px;
+}
+.chip {
+    background: #1a1040; color: #A855F7; border: 1px solid #2D2060;
+    padding: 6px 14px; border-radius: 20px; font-size: 0.78rem;
+    font-weight: 600; cursor: pointer; transition: all 0.2s;
+    font-family: 'Inter', sans-serif;
+}
+.chip:hover {
+    background: #7C3AED; color: #fff; border-color: #7C3AED;
+    transform: translateY(-1px);
+}
+
+.answer-card {
+    background: #131629; border: 1px solid #1E2235; border-radius: 12px;
+    padding: 24px; margin-top: 24px; animation: fadeSlideIn 0.4s ease;
+}
+.answer-card .answer-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #1E2235;
+}
+.answer-card .answer-header h2 {
+    font-size: 1.05rem; font-weight: 700; display: flex;
+    align-items: center; gap: 8px; margin-bottom: 0;
+}
+.answer-meta {
+    display: flex; align-items: center; gap: 12px;
+}
+.answer-meta .response-time {
+    font-size: 0.75rem; color: #64748B; background: #0B0D1A;
+    padding: 4px 10px; border-radius: 6px; border: 1px solid #1E2235;
+}
+.answer-body {
+    color: #CBD5E1; font-size: 0.9rem; line-height: 1.8;
+}
+.answer-body h1, .answer-body h2, .answer-body h3 {
+    color: #E2E8F0; margin: 16px 0 8px; font-weight: 700;
+}
+.answer-body h1 { font-size: 1.3rem; }
+.answer-body h2 { font-size: 1.15rem; }
+.answer-body h3 { font-size: 1rem; }
+.answer-body p { margin-bottom: 12px; }
+.answer-body ul, .answer-body ol {
+    margin: 8px 0 12px 20px;
+}
+.answer-body li { margin-bottom: 4px; }
+.answer-body code {
+    background: #0B0D1A; color: #A855F7; padding: 2px 6px;
+    border-radius: 4px; font-size: 0.85em;
+}
+.answer-body pre {
+    background: #0B0D1A; border: 1px solid #1E2235; border-radius: 8px;
+    padding: 14px; overflow-x: auto; margin: 12px 0;
+}
+.answer-body pre code {
+    background: none; padding: 0; color: #E2E8F0;
+}
+.answer-body strong { color: #E2E8F0; }
+.answer-body blockquote {
+    border-left: 3px solid #7C3AED; padding: 8px 16px; margin: 12px 0;
+    background: #0B0D1A; border-radius: 0 8px 8px 0; color: #94A3B8;
+}
+
+.your-question {
+    background: #0B0D1A; border: 1px solid #1E2235; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 16px; font-size: 0.85rem;
+    color: #94A3B8; display: flex; align-items: flex-start; gap: 8px;
+}
+.your-question strong { color: #A855F7; white-space: nowrap; }
+.your-question span { color: #CBD5E1; }
+
+@keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+{% endblock %}
+
+{% block content %}
+<div class="ask-container">
+    <!-- Ask Form -->
+    <div class="card question-card">
+        <h2>&#10148; Ask a Question</h2>
+        <p style="color:#64748B;font-size:0.82rem;margin-bottom:14px;">
+            Ask any academic question and get a detailed, AI-powered answer.
+        </p>
+        <form method="POST" action="/ask" id="askForm">
+            <div class="form-group">
+                <label for="question">Your Question</label>
+                <textarea
+                    name="question"
+                    id="question"
+                    class="form-textarea"
+                    placeholder="Type your question here... e.g. Explain the concept of recursion in programming"
+                    required
+                    style="min-height:130px;"
+                >{{ question if question else '' }}</textarea>
+            </div>
+
+            <!-- Suggestion Chips -->
+            <div style="margin-bottom:16px;">
+                <label style="display:block;font-size:0.8rem;font-weight:600;color:#64748B;margin-bottom:8px;">
+                    Quick Suggestions
+                </label>
+                <div class="suggestion-chips">
+                    <span class="chip" onclick="fillQuestion(this)">Explain machine learning</span>
+                    <span class="chip" onclick="fillQuestion(this)">What is quantum computing?</span>
+                    <span class="chip" onclick="fillQuestion(this)">Describe the theory of relativity</span>
+                    <span class="chip" onclick="fillQuestion(this)">How does photosynthesis work?</span>
+                    <span class="chip" onclick="fillQuestion(this)">Explain the OSI model layers</span>
+                    <span class="chip" onclick="fillQuestion(this)">What are design patterns in OOP?</span>
+                    <span class="chip" onclick="fillQuestion(this)">Explain Newton's laws of motion</span>
+                    <span class="chip" onclick="fillQuestion(this)">What is the central limit theorem?</span>
+                </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:12px;">
+                <button type="submit" class="btn btn-primary" id="submitBtn" onclick="showLoading()">
+                    &#10148; Ask AI
+                </button>
+                <span class="loading" id="loadingIndicator">
+                    <span class="spinner"></span>
+                    Thinking...
+                </span>
+            </div>
+        </form>
+    </div>
+
+    <!-- Answer Section -->
+    {% if answer %}
+    <div class="answer-card">
+        <div class="answer-header">
+            <h2>&#10024; AI Answer</h2>
+            <div class="answer-meta">
+                {% if elapsed %}
+                <span class="response-time">&#9201; {{ elapsed }}s</span>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if question %}
+        <div class="your-question">
+            <strong>Q:</strong>
+            <span>{{ question }}</span>
+        </div>
+        {% endif %}
+
+        <div class="answer-body">
+            {{ answer | safe }}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function fillQuestion(chip) {
+        document.getElementById('question').value = chip.textContent;
+        document.getElementById('question').focus();
+    }
+
+    function showLoading() {
+        var q = document.getElementById('question').value.trim();
+        if (q) {
+            document.getElementById('submitBtn').style.display = 'none';
+            document.getElementById('loadingIndicator').classList.add('active');
+        }
+    }
+</script>
+{% endblock %}

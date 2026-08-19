@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}Intellect AI - Quiz{% endblock %}
+{% block page_title %}Quiz Generator{% endblock %}
+
+{% block extra_css %}
+.quiz-card {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; background: #0B0D1A; border: 1px solid #1E2235;
+    border-radius: 10px; margin-bottom: 10px; transition: border-color 0.2s;
+}
+.quiz-card:hover { border-color: #7C3AED; }
+.quiz-card-info { display: flex; align-items: center; gap: 12px; }
+.quiz-card-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.quiz-card-title { font-weight: 600; font-size: 0.95rem; color: #E2E8F0; margin-bottom: 4px; }
+.quiz-card-detail { font-size: 0.78rem; color: #64748B; }
+.history-pct { font-weight: 700; font-size: 0.9rem; }
+.history-pct.high { color: #22C55E; }
+.history-pct.mid { color: #F59E0B; }
+.history-pct.low { color: #EF4444; }
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:24px;">
+    <p style="color:#94A3B8;font-size:0.95rem;">Generate AI-powered quizzes to test your knowledge on any topic.</p>
+</div>
+
+<div class="grid-2">
+    <!-- Generate Quiz Form -->
+    <div class="card">
+        <h2>&#9997; Generate New Quiz</h2>
+        <form method="POST" action="/quiz/generate">
+            <div class="form-group">
+                <label for="topic">Topic <span style="color:#EF4444;">*</span></label>
+                <input type="text" id="topic" name="topic" class="form-input" placeholder="e.g. Photosynthesis, World War II, Linear Algebra" required>
+            </div>
+            <div class="form-group">
+                <label for="subject">Subject</label>
+                <input type="text" id="subject" name="subject" class="form-input" placeholder="e.g. Biology, History, Mathematics">
+            </div>
+            <div class="form-group">
+                <label for="difficulty">Difficulty</label>
+                <select id="difficulty" name="difficulty" class="form-select">
+                    <option value="easy">Easy</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="hard">Hard</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="count">Number of Questions</label>
+                <input type="number" id="count" name="count" class="form-input" min="5" max="20" value="10">
+            </div>
+            <div class="form-group">
+                <label for="context">Additional Context <span style="color:#64748B;font-weight:400;">(optional)</span></label>
+                <textarea id="context" name="context" class="form-textarea" placeholder="Paste notes, key points, or specify focus areas..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;">
+                &#10022; Generate Quiz
+            </button>
+        </form>
+    </div>
+
+    <!-- Created Quizzes -->
+    <div class="card">
+        <h2>&#128203; Your Quizzes</h2>
+        {% if quizzes %}
+        <div>
+            {% for quiz in quizzes %}
+            <div class="quiz-card">
+                <div>
+                    <div class="quiz-card-title">{{ quiz.topic }}</div>
+                    <div class="quiz-card-meta">
+                        {% if quiz.subject %}
+                        <span class="tag tag-purple">{{ quiz.subject }}</span>
+                        {% endif %}
+                        <span class="tag {% if quiz.difficulty == 'easy' %}tag-green{% elif quiz.difficulty == 'medium' %}tag-orange{% else %}tag-red{% endif %}">
+                            {{ quiz.difficulty|capitalize }}
+                        </span>
+                        <span class="quiz-card-detail">{{ quiz.total_questions }} questions</span>
+                        <span class="quiz-card-detail">{{ quiz.created_at }}</span>
+                    </div>
+                </div>
+                <a href="/quiz/take/{{ quiz.id }}" class="btn btn-primary btn-sm" style="text-decoration:none;">
+                    Take Quiz &#10148;
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="icon">&#128221;</div>
+            <p>No quizzes created yet. Generate your first quiz to get started!</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Quiz History -->
+<div class="card" style="margin-top:4px;">
+    <h2>&#128200; Quiz History</h2>
+    {% if history %}
+    <div style="overflow-x:auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Topic</th>
+                    <th>Subject</th>
+                    <th>Difficulty</th>
+                    <th>Score</th>
+                    <th>Percentage</th>
+                    <th>Attempted</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for h in history %}
+                <tr>
+                    <td style="font-weight:600;color:#E2E8F0;">{{ h.topic }}</td>
+                    <td>
+                        {% if h.subject %}
+                        <span class="tag tag-purple">{{ h.subject }}</span>
+                        {% else %}
+                        <span style="color:#475569;">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="tag {% if h.difficulty == 'easy' %}tag-green{% elif h.difficulty == 'medium' %}tag-orange{% else %}tag-red{% endif %}">
+                            {{ h.difficulty|capitalize }}
+                        </span>
+                    </td>
+                    <td>{{ h.score }} / {{ h.total }}</td>
+                    <td>
+                        <span class="history-pct {% if h.percentage >= 70 %}high{% elif h.percentage >= 50 %}mid{% else %}low{% endif %}">
+                            {{ h.percentage }}%
+                        </span>
+                    </td>
+                    <td style="color:#64748B;">{{ h.attempted_at }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="icon">&#128202;</div>
+        <p>No quiz attempts yet. Take a quiz to see your results here!</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

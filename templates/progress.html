@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+{% block title %}Intellect AI - Progress Tracker{% endblock %}
+{% block page_title %}Progress Tracker{% endblock %}
+
+{% block extra_css %}
+<style>
+    .mastery-item {
+        display: flex; align-items: center; gap: 14px;
+        padding: 12px 0; border-bottom: 1px solid #1E2235;
+    }
+    .mastery-item:last-child { border-bottom: none; }
+    .mastery-label {
+        min-width: 160px; font-size: 0.85rem; font-weight: 600;
+        color: #E2E8F0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .mastery-bar-wrap { flex: 1; }
+    .mastery-pct {
+        min-width: 48px; text-align: right; font-size: 0.85rem; font-weight: 700;
+    }
+    .weak-card {
+        background: #0B0D1A; border: 1px solid #1E2235; border-radius: 10px;
+        padding: 16px; margin-bottom: 12px;
+    }
+    .weak-card-header {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 10px;
+    }
+    .weak-card-header h3 { font-size: 0.95rem; font-weight: 700; color: #FCA5A5; }
+    .score-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    .score-pill {
+        background: #1E2235; border-radius: 6px; padding: 3px 10px;
+        font-size: 0.75rem; font-weight: 600; color: #94A3B8;
+    }
+    .subject-bar-chart .bar-item { margin-bottom: 12px; }
+    .subject-bar-chart .bar-label {
+        display: flex; justify-content: space-between;
+        font-size: 0.85rem; margin-bottom: 4px;
+    }
+    .subject-bar-chart .bar-label span:first-child { text-transform: capitalize; }
+    .subject-bar-chart .bar-label span:last-child { color: #A855F7; font-weight: 600; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:24px;">
+    <p style="color:#94A3B8;font-size:0.95rem;">Track your study habits, identify weak areas, and monitor mastery across all topics.</p>
+</div>
+
+<!-- Stats Row -->
+<div class="stats-grid">
+    <div class="stat-card blue">
+        <div class="value">{{ data.total_study_hours }}h</div>
+        <div class="label">Total Study Hours</div>
+    </div>
+    <div class="stat-card">
+        <div class="value">{{ data.total_quizzes }}</div>
+        <div class="label">Quizzes Taken</div>
+    </div>
+    <div class="stat-card {% if data.avg_quiz_score >= 70 %}green{% elif data.avg_quiz_score >= 50 %}orange{% else %}red{% endif %}">
+        <div class="value">{{ data.avg_quiz_score }}%</div>
+        <div class="label">Avg Score</div>
+    </div>
+    <div class="stat-card green">
+        <div class="value">{{ data.total_flashcards }}</div>
+        <div class="label">Flashcards</div>
+    </div>
+    <div class="stat-card">
+        <div class="value">{{ data.strong_topics }}</div>
+        <div class="label">Strong Topics</div>
+    </div>
+    <div class="stat-card red">
+        <div class="value">{{ data.weak_topics }}</div>
+        <div class="label">Weak Topics</div>
+    </div>
+</div>
+
+<!-- Log Study Session Form -->
+<div class="card" style="margin-bottom:24px;">
+    <h2>Log Study Session</h2>
+    <form method="POST" action="/progress/session">
+        <div class="grid-2">
+            <div class="form-group">
+                <label for="subject">Subject</label>
+                <input type="text" id="subject" name="subject" class="form-input" placeholder="e.g. Mathematics" required>
+            </div>
+            <div class="form-group">
+                <label for="topic">Topic</label>
+                <input type="text" id="topic" name="topic" class="form-input" placeholder="e.g. Calculus - Integration" required>
+            </div>
+        </div>
+        <div class="grid-2">
+            <div class="form-group">
+                <label for="duration">Duration (minutes)</label>
+                <input type="number" id="duration" name="duration" class="form-input" min="1" placeholder="e.g. 45" required>
+            </div>
+            <div class="form-group">
+                <label for="activity_type">Activity Type</label>
+                <select id="activity_type" name="activity_type" class="form-input">
+                    <option value="reading">Reading</option>
+                    <option value="quiz">Quiz</option>
+                    <option value="flashcard">Flashcard</option>
+                    <option value="notes">Notes</option>
+                    <option value="revision">Revision</option>
+                </select>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Log Session</button>
+    </form>
+</div>
+
+<div class="grid-2">
+    <!-- Weak Topics -->
+    <div class="card">
+        <h2 style="color:#FCA5A5;">Weak Topics</h2>
+        {% if weak_topics %}
+            {% for item in weak_topics %}
+            <div class="weak-card">
+                <div class="weak-card-header">
+                    <h3>{{ item.topic }}</h3>
+                    <span class="tag tag-red">{{ item.subject }}</span>
+                </div>
+                <div style="margin-bottom:8px;">
+                    <div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:4px;">
+                        <span style="color:#94A3B8;">Mastery</span>
+                        <span style="color:#FCA5A5;font-weight:700;">{{ item.mastery_level }}%</span>
+                    </div>
+                    <div class="bar-track">
+                        <div class="bar-fill red" style="width:{{ item.mastery_level }}%"></div>
+                    </div>
+                </div>
+                {% if item.quiz_scores %}
+                <div style="font-size:0.8rem;color:#64748B;margin-top:6px;">Quiz Scores:</div>
+                <div class="score-pills">
+                    {% for score in item.quiz_scores %}
+                    <span class="score-pill">{{ score }}%</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <div style="font-size:0.75rem;color:#64748B;margin-top:8px;">Studied {{ item.times_studied }} time{{ 's' if item.times_studied != 1 else '' }}</div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div class="icon">&#127942;</div>
+                <p>No weak topics detected. Keep up the great work!</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Topic Mastery -->
+    <div class="card">
+        <h2>Topic Mastery</h2>
+        {% if mastery %}
+            {% for item in mastery %}
+            <div class="mastery-item">
+                <div class="mastery-label" title="{{ item.subject }} - {{ item.topic }}">{{ item.topic }}</div>
+                <div class="mastery-bar-wrap">
+                    <div class="bar-track" style="height:10px;">
+                        <div class="bar-fill {% if item.mastery_level >= 70 %}green{% elif item.mastery_level >= 50 %}orange{% else %}red{% endif %}" style="width:{{ item.mastery_level }}%"></div>
+                    </div>
+                </div>
+                <div class="mastery-pct" style="color:{% if item.mastery_level >= 70 %}#22C55E{% elif item.mastery_level >= 50 %}#F59E0B{% else %}#EF4444{% endif %};">{{ item.mastery_level }}%</div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div class="icon">&#128202;</div>
+                <p>No mastery data yet. Take quizzes and study to build your profile.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="grid-2" style="margin-top:20px;">
+    <!-- Recent Quiz Scores -->
+    <div class="card">
+        <h2>Recent Quiz Scores</h2>
+        {% if data.recent_scores %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Topic</th>
+                    <th>Score</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in data.recent_scores %}
+                <tr>
+                    <td style="text-transform:capitalize;">{{ item.topic }}</td>
+                    <td>
+                        <span style="font-weight:700;color:{% if item.percentage >= 70 %}#22C55E{% elif item.percentage >= 50 %}#F59E0B{% else %}#EF4444{% endif %};">
+                            {{ item.percentage }}%
+                        </span>
+                    </td>
+                    <td style="color:#64748B;">{{ item.attempted_at }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <div class="icon">&#128221;</div>
+            <p>No quiz scores yet. Take a quiz to see your results here.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Study by Subject -->
+    <div class="card">
+        <h2>Study by Subject</h2>
+        {% if data.subject_breakdown %}
+        <div class="subject-bar-chart">
+            {% set max_mins = data.subject_breakdown | map(attribute='mins') | max %}
+            {% for item in data.subject_breakdown %}
+            <div class="bar-item">
+                <div class="bar-label">
+                    <span>{{ item.subject }}</span>
+                    <span>{{ item.mins }} min{{ 's' if item.mins != 1 else '' }} ({{ item.sessions }} session{{ 's' if item.sessions != 1 else '' }})</span>
+                </div>
+                <div class="bar-track" style="height:10px;">
+                    <div class="bar-fill" style="width:{{ (item.mins / max_mins * 100) | int }}%"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="icon">&#128218;</div>
+            <p>No study sessions logged. Use the form above to start tracking.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

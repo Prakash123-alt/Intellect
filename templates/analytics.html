@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% block title %}Intellect AI - Analytics Pipeline{% endblock %}
+{% block page_title %}Data Pipeline & Analytics{% endblock %}
+
+{% block extra_css %}
+<style>
+    .section { margin-bottom: 24px; }
+    .section h2 { font-size: 1.1rem; margin-bottom: 16px; color: #E2E8F0; }
+
+    .bar-chart .bar-item { margin-bottom: 10px; }
+    .bar-chart .bar-label {
+        display: flex; justify-content: space-between;
+        font-size: 0.85rem; margin-bottom: 4px;
+    }
+    .bar-chart .bar-label span:first-child { text-transform: capitalize; }
+    .bar-chart .bar-label span:last-child { color: #A855F7; }
+
+    .keyword-cloud { display: flex; flex-wrap: wrap; gap: 8px; }
+    .keyword {
+        background: #1E2235; border: 1px solid #2D3250; border-radius: 20px;
+        padding: 6px 14px; font-size: 0.8rem; color: #A855F7;
+    }
+    .keyword .count { color: #64748B; margin-left: 4px; }
+
+    .export-section { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+    .export-btn {
+        background: linear-gradient(135deg, #7C3AED, #A855F7);
+        color: white; border: none; border-radius: 8px;
+        padding: 10px 20px; font-size: 0.9rem; cursor: pointer;
+        text-decoration: none; display: inline-block;
+    }
+    .export-btn:hover { opacity: 0.9; }
+    .export-btn.secondary { background: #131629; border: 1px solid #1E2235; }
+
+    .sentiment-badges { display: flex; gap: 12px; flex-wrap: wrap; }
+    .badge { padding: 8px 16px; border-radius: 20px; font-size: 0.85rem; }
+    .badge.positive { background: #064E3B; color: #6EE7B7; }
+    .badge.neutral { background: #1E2235; color: #94A3B8; }
+    .badge.negative { background: #7F1D1D; color: #FCA5A5; }
+
+    .pipeline-flow {
+        display: flex; align-items: center; justify-content: center;
+        gap: 8px; flex-wrap: wrap; margin-bottom: 24px;
+        background: #131629; border: 1px solid #1E2235;
+        border-radius: 12px; padding: 20px;
+    }
+    .pipeline-step {
+        background: #1E2235; padding: 10px 16px; border-radius: 8px;
+        font-size: 0.8rem; color: #A855F7; text-align: center;
+    }
+    .pipeline-arrow { color: #64748B; font-size: 1.2rem; }
+
+    .stream-card { margin-top: 12px; }
+    .stream-item {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 8px 0; border-bottom: 1px solid #1E2235; font-size: 0.85rem;
+    }
+    .stream-dot {
+        width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+        margin-right: 8px;
+    }
+    .stream-dot.active { background: #22C55E; }
+    .stream-dot.pending { background: #F59E0B; }
+
+    td.topic { text-transform: capitalize; }
+    td.time { color: #64748B; }
+</style>
+{% endblock %}
+
+{% block content %}
+<p style="color:#64748B;margin-bottom:24px;">Real-time monitoring of your AI Q&A pipeline</p>
+
+<!-- Pipeline Flow -->
+<div class="pipeline-flow">
+    <div class="pipeline-step">User Input</div>
+    <span class="pipeline-arrow">&rarr;</span>
+    <div class="pipeline-step">Preprocessing</div>
+    <span class="pipeline-arrow">&rarr;</span>
+    <div class="pipeline-step">Groq API</div>
+    <span class="pipeline-arrow">&rarr;</span>
+    <div class="pipeline-step">Store (SQLite)</div>
+    <span class="pipeline-arrow">&rarr;</span>
+    <div class="pipeline-step">Analytics</div>
+    <span class="pipeline-arrow">&rarr;</span>
+    <div class="pipeline-step">Export</div>
+</div>
+
+<!-- Stats -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="value">{{ analytics.total_queries }}</div>
+        <div class="label">Total Queries</div>
+    </div>
+    <div class="stat-card">
+        <div class="value">{{ analytics.avg_response_time }}s</div>
+        <div class="label">Avg Response Time</div>
+    </div>
+    <div class="stat-card">
+        <div class="value">{{ analytics.total_tokens }}</div>
+        <div class="label">Total Tokens Used</div>
+    </div>
+    <div class="stat-card">
+        <div class="value">{{ analytics.topics | length }}</div>
+        <div class="label">Topics Covered</div>
+    </div>
+</div>
+
+<!-- Export -->
+<div class="export-section">
+    <a href="/export/json" class="export-btn">Export JSON (Training Data)</a>
+    <a href="/export/csv" class="export-btn secondary">Export CSV</a>
+    <a href="/process-events" class="export-btn secondary">Process Stream Events</a>
+</div>
+
+<div class="grid-2">
+    <!-- Topics -->
+    <div class="card section">
+        <h2>Topic Distribution</h2>
+        <div class="bar-chart">
+            {% set max_count = analytics.topics[0][1] if analytics.topics else 1 %}
+            {% for topic, count in analytics.topics %}
+            <div class="bar-item">
+                <div class="bar-label">
+                    <span>{{ topic }}</span>
+                    <span>{{ count }}</span>
+                </div>
+                <div class="bar-track">
+                    <div class="bar-fill" style="width: {{ (count / max_count * 100) | int }}%"></div>
+                </div>
+            </div>
+            {% endfor %}
+            {% if not analytics.topics %}
+            <p style="color: #64748B;">No data yet. Ask some questions first!</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Keywords -->
+    <div class="card section">
+        <h2>Top Keywords</h2>
+        <div class="keyword-cloud">
+            {% for keyword, count in analytics.top_keywords %}
+            <span class="keyword">{{ keyword }} <span class="count">({{ count }})</span></span>
+            {% endfor %}
+            {% if not analytics.top_keywords %}
+            <p style="color: #64748B;">No keywords yet.</p>
+            {% endif %}
+        </div>
+
+        <h2 style="margin-top: 24px;">Sentiment Analysis</h2>
+        <div class="sentiment-badges">
+            {% for sentiment, count in analytics.sentiments %}
+            <span class="badge {{ sentiment }}">{{ sentiment | capitalize }}: {{ count }}</span>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="grid-2">
+    <!-- Daily Usage -->
+    <div class="card section">
+        <h2>Daily Usage (Last 7 Days)</h2>
+        <div class="bar-chart">
+            {% set max_daily = analytics.daily_usage[0][1] if analytics.daily_usage else 1 %}
+            {% for day, count in analytics.daily_usage %}
+            <div class="bar-item">
+                <div class="bar-label">
+                    <span>{{ day }}</span>
+                    <span>{{ count }}</span>
+                </div>
+                <div class="bar-track">
+                    <div class="bar-fill" style="width: {{ (count / max_daily * 100) | int }}%"></div>
+                </div>
+            </div>
+            {% endfor %}
+            {% if not analytics.daily_usage %}
+            <p style="color: #64748B;">No usage data yet.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Stream Stats -->
+    <div class="card section">
+        <h2>Real-time Stream Monitor</h2>
+        <div class="stream-card">
+            <div class="stream-item">
+                <span><span class="stream-dot active"></span> Total Events</span>
+                <span>{{ stream.total_events }}</span>
+            </div>
+            <div class="stream-item">
+                <span><span class="stream-dot pending"></span> Pending Events</span>
+                <span>{{ stream.pending }}</span>
+            </div>
+            {% for source, count in stream.sources %}
+            <div class="stream-item">
+                <span>Source: {{ source }}</span>
+                <span>{{ count }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Recent Queries -->
+<div class="card section">
+    <h2>Recent Queries</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Question</th>
+                <th>Topic</th>
+                <th>Response Time</th>
+                <th>Timestamp</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for q in analytics.recent_queries %}
+            <tr>
+                <td>{{ q[0][:80] }}{% if q[0]|length > 80 %}...{% endif %}</td>
+                <td class="topic">{{ q[2] }}</td>
+                <td>{{ q[3] | round(2) }}s</td>
+                <td class="time">{{ q[4] }}</td>
+            </tr>
+            {% endfor %}
+            {% if not analytics.recent_queries %}
+            <tr><td colspan="4" style="color: #64748B; text-align: center;">No queries yet</td></tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

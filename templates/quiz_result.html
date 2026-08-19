@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% block title %}Intellect AI - Quiz Results{% endblock %}
+{% block page_title %}Quiz Results{% endblock %}
+
+{% block extra_css %}
+.result-hero {
+    text-align: center; padding: 32px 20px; margin-bottom: 24px;
+    background: #131629; border: 1px solid #1E2235; border-radius: 16px;
+}
+.result-percentage {
+    font-size: 4rem; font-weight: 800; line-height: 1;
+    {% if attempt.percentage >= 70 %}
+    color: #22C55E;
+    {% elif attempt.percentage >= 50 %}
+    color: #F59E0B;
+    {% else %}
+    color: #EF4444;
+    {% endif %}
+}
+.result-score {
+    font-size: 1.1rem; color: #94A3B8; margin-top: 8px; font-weight: 600;
+}
+.result-label {
+    font-size: 0.85rem; color: #64748B; margin-top: 4px;
+}
+.result-bar-wrapper { max-width: 400px; margin: 20px auto 0; }
+.result-meta {
+    display: flex; justify-content: center; gap: 24px; margin-top: 20px; flex-wrap: wrap;
+}
+.result-meta-item {
+    text-align: center;
+}
+.result-meta-item .meta-value { font-size: 1rem; font-weight: 700; color: #E2E8F0; }
+.result-meta-item .meta-label { font-size: 0.75rem; color: #64748B; margin-top: 2px; }
+.result-actions {
+    display: flex; justify-content: center; gap: 12px; margin-top: 24px; flex-wrap: wrap;
+}
+.review-block {
+    background: #131629; border: 1px solid #1E2235; border-radius: 12px;
+    padding: 24px; margin-bottom: 16px;
+}
+.review-block.correct { border-left: 4px solid #22C55E; }
+.review-block.wrong { border-left: 4px solid #EF4444; }
+.review-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 14px; gap: 12px;
+}
+.review-question {
+    display: flex; align-items: flex-start; gap: 10px; flex: 1;
+}
+.review-number {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 50%;
+    font-size: 0.8rem; font-weight: 700; flex-shrink: 0;
+}
+.review-number.correct { background: #064E3B; color: #6EE7B7; }
+.review-number.wrong { background: #450A0A; color: #FCA5A5; }
+.review-status {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700;
+    flex-shrink: 0;
+}
+.review-status.correct { background: #064E3B; color: #6EE7B7; }
+.review-status.wrong { background: #450A0A; color: #FCA5A5; }
+.review-question-text { font-size: 0.95rem; font-weight: 600; color: #E2E8F0; line-height: 1.5; }
+.review-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.review-option {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+    background: #0B0D1A; border: 2px solid #1E2235; border-radius: 8px;
+    font-size: 0.85rem; color: #94A3B8;
+}
+.review-option.is-correct {
+    border-color: #22C55E; background: #0a1f15; color: #6EE7B7;
+}
+.review-option.is-wrong {
+    border-color: #EF4444; background: #1a0a0a; color: #FCA5A5;
+}
+.review-option-letter {
+    display: flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; border-radius: 50%; background: #1E2235;
+    font-size: 0.75rem; font-weight: 700; flex-shrink: 0;
+}
+.review-option.is-correct .review-option-letter { background: #22C55E; color: #fff; }
+.review-option.is-wrong .review-option-letter { background: #EF4444; color: #fff; }
+.review-explanation {
+    background: #0B0D1A; border: 1px solid #1E2235; border-radius: 8px;
+    padding: 12px 16px; font-size: 0.85rem; color: #94A3B8; line-height: 1.6;
+}
+.review-explanation strong { color: #A855F7; font-weight: 600; }
+@media (max-width: 768px) {
+    .review-options { grid-template-columns: 1fr; }
+    .result-percentage { font-size: 3rem; }
+}
+{% endblock %}
+
+{% block content %}
+<!-- Score Hero -->
+<div class="result-hero">
+    <div class="result-percentage">{{ attempt.percentage }}%</div>
+    <div class="result-score">{{ attempt.score }} / {{ attempt.total }} correct</div>
+    <div class="result-label">
+        {% if attempt.percentage >= 90 %}Excellent work!
+        {% elif attempt.percentage >= 70 %}Great job!
+        {% elif attempt.percentage >= 50 %}Good effort, keep practicing!
+        {% else %}Keep studying, you'll improve!
+        {% endif %}
+    </div>
+    <div class="result-bar-wrapper">
+        <div class="bar-track" style="height:12px;">
+            <div class="bar-fill {% if attempt.percentage >= 70 %}green{% elif attempt.percentage >= 50 %}orange{% else %}red{% endif %}"
+                 style="width:{{ attempt.percentage }}%;"></div>
+        </div>
+    </div>
+    <div class="result-meta">
+        <div class="result-meta-item">
+            <div class="meta-value">{{ quiz.topic }}</div>
+            <div class="meta-label">Topic</div>
+        </div>
+        <div class="result-meta-item">
+            <div class="meta-value">
+                <span class="tag {% if quiz.difficulty == 'easy' %}tag-green{% elif quiz.difficulty == 'medium' %}tag-orange{% else %}tag-red{% endif %}">
+                    {{ quiz.difficulty|capitalize }}
+                </span>
+            </div>
+            <div class="meta-label">Difficulty</div>
+        </div>
+        <div class="result-meta-item">
+            <div class="meta-value">
+                {% set mins = (attempt.time_taken // 60) %}
+                {% set secs = (attempt.time_taken % 60) %}
+                {{ '%02d'|format(mins) }}:{{ '%02d'|format(secs) }}
+            </div>
+            <div class="meta-label">Time Taken</div>
+        </div>
+        {% if quiz.subject %}
+        <div class="result-meta-item">
+            <div class="meta-value"><span class="tag tag-purple">{{ quiz.subject }}</span></div>
+            <div class="meta-label">Subject</div>
+        </div>
+        {% endif %}
+    </div>
+    <div class="result-actions">
+        <a href="/quiz/take/{{ quiz.id }}" class="btn btn-primary" style="text-decoration:none;">
+            &#8635; Take Again
+        </a>
+        <a href="/quiz" class="btn btn-secondary" style="text-decoration:none;">
+            &#8592; Back to Quizzes
+        </a>
+    </div>
+</div>
+
+<!-- Stats Summary -->
+<div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
+    <div class="stat-card green">
+        <div class="value">{{ attempt.answers|selectattr('is_correct')|list|length }}</div>
+        <div class="label">Correct Answers</div>
+    </div>
+    <div class="stat-card red">
+        <div class="value">{{ attempt.answers|rejectattr('is_correct')|list|length }}</div>
+        <div class="label">Wrong Answers</div>
+    </div>
+    <div class="stat-card orange">
+        <div class="value">
+            {% if attempt.total > 0 %}
+                {% set mins = (attempt.time_taken // attempt.total) %}
+                {{ mins }}s
+            {% else %}
+                0s
+            {% endif %}
+        </div>
+        <div class="label">Avg. per Question</div>
+    </div>
+</div>
+
+<!-- Question Review -->
+<div style="margin-bottom:16px;">
+    <h2 style="font-size:1.15rem;font-weight:700;">&#128270; Question Review</h2>
+    <p style="color:#64748B;font-size:0.85rem;margin-top:4px;">Review each question with correct answers and explanations.</p>
+</div>
+
+{% for answer in attempt.answers %}
+{% set q = questions | selectattr('id', 'equalto', answer.question_id) | first %}
+{% if q %}
+<div class="review-block {{ 'correct' if answer.is_correct else 'wrong' }}">
+    <div class="review-header">
+        <div class="review-question">
+            <span class="review-number {{ 'correct' if answer.is_correct else 'wrong' }}">{{ loop.index }}</span>
+            <span class="review-question-text">{{ q.question }}</span>
+        </div>
+        <span class="review-status {{ 'correct' if answer.is_correct else 'wrong' }}">
+            {% if answer.is_correct %}&#10004; Correct{% else %}&#10008; Wrong{% endif %}
+        </span>
+    </div>
+    <div class="review-options">
+        {% set options = [('A', q.option_a), ('B', q.option_b), ('C', q.option_c), ('D', q.option_d)] %}
+        {% for letter, text in options %}
+        <div class="review-option
+            {% if letter == q.correct_answer %}is-correct{% endif %}
+            {% if letter == answer.selected and not answer.is_correct %}is-wrong{% endif %}">
+            <span class="review-option-letter">{{ letter }}</span>
+            <span>{{ text }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% if q.explanation %}
+    <div class="review-explanation">
+        <strong>&#128161; Explanation:</strong> {{ q.explanation }}
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+{% endfor %}
+
+<!-- Bottom Actions -->
+<div style="display:flex;justify-content:center;gap:12px;margin-top:24px;padding-bottom:20px;">
+    <a href="/quiz/take/{{ quiz.id }}" class="btn btn-primary" style="text-decoration:none;">
+        &#8635; Take Again
+    </a>
+    <a href="/quiz" class="btn btn-secondary" style="text-decoration:none;">
+        &#8592; Back to Quizzes
+    </a>
+</div>
+{% endblock %}

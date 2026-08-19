@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% block title %}Intellect AI - Predict Important Topics{% endblock %}
+{% block page_title %}Predict Important Topics{% endblock %}
+
+{% block extra_css %}
+<style>
+    .prediction-card {
+        background: #131629; border: 1px solid #1E2235; border-radius: 12px;
+        margin-bottom: 16px; overflow: hidden;
+    }
+    .prediction-header {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 16px 20px; cursor: pointer; user-select: none;
+        transition: background 0.2s;
+    }
+    .prediction-header:hover { background: #1a1d35; }
+    .prediction-header-left {
+        display: flex; align-items: center; gap: 12px;
+    }
+    .prediction-header-left h3 {
+        font-size: 1rem; font-weight: 700; color: #E2E8F0; margin: 0;
+    }
+    .prediction-date {
+        font-size: 0.75rem; color: #64748B;
+    }
+    .toggle-icon {
+        font-size: 1.2rem; color: #64748B; transition: transform 0.3s;
+    }
+    .prediction-card.open .toggle-icon { transform: rotate(180deg); }
+    .prediction-body {
+        max-height: 0; overflow: hidden; transition: max-height 0.4s ease;
+    }
+    .prediction-card.open .prediction-body { max-height: 5000px; }
+    .prediction-content {
+        padding: 0 20px 20px; border-top: 1px solid #1E2235;
+    }
+    .priority-section { margin-top: 20px; }
+    .priority-section h4 {
+        font-size: 0.9rem; font-weight: 700; margin-bottom: 12px;
+        display: flex; align-items: center; gap: 8px;
+    }
+    .priority-item {
+        background: #0B0D1A; border: 1px solid #1E2235; border-radius: 8px;
+        padding: 12px 16px; margin-bottom: 8px;
+    }
+    .priority-item-topic {
+        font-size: 0.9rem; font-weight: 600; color: #E2E8F0; margin-bottom: 4px;
+    }
+    .priority-item-reason {
+        font-size: 0.8rem; color: #94A3B8;
+    }
+    .predicted-questions {
+        list-style: none; counter-reset: pq; padding: 0;
+    }
+    .predicted-questions li {
+        counter-increment: pq; padding: 10px 16px; margin-bottom: 6px;
+        background: #0B0D1A; border: 1px solid #1E2235; border-radius: 8px;
+        font-size: 0.85rem; color: #CBD5E1;
+    }
+    .predicted-questions li::before {
+        content: counter(pq) ". ";
+        color: #A855F7; font-weight: 700;
+    }
+    .tips-list {
+        list-style: none; padding: 0;
+    }
+    .tips-list li {
+        padding: 8px 0; border-bottom: 1px solid #1E2235;
+        font-size: 0.85rem; color: #CBD5E1;
+        display: flex; align-items: baseline; gap: 8px;
+    }
+    .tips-list li:last-child { border-bottom: none; }
+    .tips-list li::before {
+        content: "\2022"; color: #A855F7; font-weight: 700; font-size: 1.1rem;
+        flex-shrink: 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:24px;">
+    <p style="color:#94A3B8;font-size:0.95rem;">Use AI to predict which topics are most likely to appear in your exam and get tailored preparation tips.</p>
+</div>
+
+<!-- Prediction Form -->
+<div class="card" style="margin-bottom:24px;">
+    <h2>Analyze Exam Topics</h2>
+    <form method="POST" action="/predict/analyze" id="predictForm">
+        <div class="form-group">
+            <label for="subject">Subject</label>
+            <input type="text" id="subject" name="subject" class="form-input" placeholder="e.g. Computer Science" required>
+        </div>
+        <div class="form-group">
+            <label for="syllabus_topics">Syllabus Topics</label>
+            <textarea id="syllabus_topics" name="syllabus_topics" class="form-textarea" placeholder="Enter syllabus topics, one per line or comma-separated" required></textarea>
+        </div>
+        <div class="form-group">
+            <label for="past_exam_topics">Past Exam Topics</label>
+            <textarea id="past_exam_topics" name="past_exam_topics" class="form-textarea" style="min-height:80px;" placeholder="Topics from previous exams (optional)"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary" id="predictBtn">
+            <span>&#9733;</span> Predict Important Topics
+        </button>
+        <span class="loading" id="predictLoading">
+            <span class="spinner"></span> Analyzing topics...
+        </span>
+    </form>
+</div>
+
+<!-- Predictions List -->
+{% if predictions %}
+<div style="margin-bottom:16px;">
+    <h2 style="font-size:1.1rem;font-weight:700;">Previous Predictions</h2>
+</div>
+
+{% for pred in predictions %}
+<div class="prediction-card" id="pred-{{ pred.id }}">
+    <div class="prediction-header" onclick="togglePrediction('pred-{{ pred.id }}')">
+        <div class="prediction-header-left">
+            <span style="font-size:1.2rem;">&#9733;</span>
+            <div>
+                <h3>{{ pred.subject }}</h3>
+                <span class="prediction-date">{{ pred.created_at }}</span>
+            </div>
+        </div>
+        <span class="toggle-icon">&#9660;</span>
+    </div>
+    <div class="prediction-body">
+        <div class="prediction-content">
+            {% set pdata = pred.prediction_data %}
+
+            <!-- High Priority -->
+            {% if pdata.high_priority %}
+            <div class="priority-section">
+                <h4><span class="tag tag-red">High Priority</span> Most Likely to Appear</h4>
+                {% for item in pdata.high_priority %}
+                <div class="priority-item" style="border-left:3px solid #EF4444;">
+                    <div class="priority-item-topic">{{ item.topic }}</div>
+                    <div class="priority-item-reason">{{ item.reason }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Medium Priority -->
+            {% if pdata.medium_priority %}
+            <div class="priority-section">
+                <h4><span class="tag tag-orange">Medium Priority</span> Likely to Appear</h4>
+                {% for item in pdata.medium_priority %}
+                <div class="priority-item" style="border-left:3px solid #F59E0B;">
+                    <div class="priority-item-topic">{{ item.topic }}</div>
+                    <div class="priority-item-reason">{{ item.reason }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Low Priority -->
+            {% if pdata.low_priority %}
+            <div class="priority-section">
+                <h4><span class="tag tag-blue">Low Priority</span> Less Likely</h4>
+                {% for item in pdata.low_priority %}
+                <div class="priority-item" style="border-left:3px solid #3B82F6;">
+                    <div class="priority-item-topic">{{ item.topic }}</div>
+                    <div class="priority-item-reason">{{ item.reason }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Predicted Questions -->
+            {% if pdata.predicted_questions %}
+            <div class="priority-section">
+                <h4 style="color:#A855F7;">Predicted Questions</h4>
+                <ol class="predicted-questions">
+                    {% for q in pdata.predicted_questions %}
+                    <li>{{ q }}</li>
+                    {% endfor %}
+                </ol>
+            </div>
+            {% endif %}
+
+            <!-- Preparation Tips -->
+            {% if pdata.preparation_tips %}
+            <div class="priority-section">
+                <h4 style="color:#22C55E;">Preparation Tips</h4>
+                <ul class="tips-list">
+                    {% for tip in pdata.preparation_tips %}
+                    <li>{{ tip }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% else %}
+<div class="card">
+    <div class="empty-state">
+        <div class="icon">&#9733;</div>
+        <p>No predictions yet. Enter your syllabus topics above to get AI-powered exam predictions.</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function togglePrediction(id) {
+        const card = document.getElementById(id);
+        card.classList.toggle('open');
+    }
+
+    // Auto-open the first prediction
+    document.addEventListener('DOMContentLoaded', function() {
+        const first = document.querySelector('.prediction-card');
+        if (first) first.classList.add('open');
+    });
+
+    // Form loading state
+    const form = document.getElementById('predictForm');
+    if (form) {
+        form.addEventListener('submit', function() {
+            const btn = document.getElementById('predictBtn');
+            const loading = document.getElementById('predictLoading');
+            btn.disabled = true;
+            btn.style.opacity = '0.6';
+            loading.classList.add('active');
+        });
+    }
+</script>
+{% endblock %}

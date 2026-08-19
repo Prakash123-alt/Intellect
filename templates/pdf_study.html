@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+{% block title %}Intellect AI - PDF Study{% endblock %}
+{% block page_title %}PDF Study{% endblock %}
+
+{% block extra_css %}
+.pdf-container { max-width: 920px; }
+
+.upload-zone {
+    border: 2px dashed #1E2235; border-radius: 12px; padding: 28px;
+    text-align: center; transition: all 0.3s; background: #0B0D1A;
+    cursor: pointer; position: relative;
+}
+.upload-zone:hover, .upload-zone.dragover {
+    border-color: #7C3AED; background: #0f0d24;
+}
+.upload-zone .upload-icon {
+    font-size: 2.2rem; margin-bottom: 10px; display: block;
+}
+.upload-zone p { color: #64748B; font-size: 0.85rem; margin-bottom: 4px; }
+.upload-zone .file-name {
+    color: #A855F7; font-size: 0.85rem; font-weight: 600;
+    margin-top: 8px; display: none;
+}
+
+.pdf-list {
+    display: flex; flex-direction: column; gap: 10px; margin-top: 4px;
+}
+.pdf-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; background: #0B0D1A; border: 1px solid #1E2235;
+    border-radius: 10px; transition: border-color 0.2s;
+}
+.pdf-item:hover { border-color: #2D3250; }
+.pdf-item-info {
+    display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;
+}
+.pdf-item-icon {
+    width: 38px; height: 38px; background: #1a1040; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem; flex-shrink: 0;
+}
+.pdf-item-details { min-width: 0; }
+.pdf-item-details .name {
+    font-size: 0.88rem; font-weight: 600; color: #E2E8F0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.pdf-item-details .meta {
+    font-size: 0.75rem; color: #64748B; margin-top: 2px;
+    display: flex; align-items: center; gap: 8px;
+}
+.pdf-item-tags { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+.answer-card {
+    background: #131629; border: 1px solid #1E2235; border-radius: 12px;
+    padding: 24px; margin-top: 24px; animation: fadeSlideIn 0.4s ease;
+}
+.answer-card .answer-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #1E2235;
+}
+.answer-card .answer-header h2 {
+    font-size: 1.05rem; font-weight: 700; display: flex;
+    align-items: center; gap: 8px; margin-bottom: 0;
+}
+.answer-meta {
+    display: flex; align-items: center; gap: 12px;
+}
+.answer-meta .response-time {
+    font-size: 0.75rem; color: #64748B; background: #0B0D1A;
+    padding: 4px 10px; border-radius: 6px; border: 1px solid #1E2235;
+}
+.answer-body {
+    color: #CBD5E1; font-size: 0.9rem; line-height: 1.8;
+}
+.answer-body h1, .answer-body h2, .answer-body h3 {
+    color: #E2E8F0; margin: 16px 0 8px; font-weight: 700;
+}
+.answer-body h1 { font-size: 1.3rem; }
+.answer-body h2 { font-size: 1.15rem; }
+.answer-body h3 { font-size: 1rem; }
+.answer-body p { margin-bottom: 12px; }
+.answer-body ul, .answer-body ol { margin: 8px 0 12px 20px; }
+.answer-body li { margin-bottom: 4px; }
+.answer-body code {
+    background: #0B0D1A; color: #A855F7; padding: 2px 6px;
+    border-radius: 4px; font-size: 0.85em;
+}
+.answer-body pre {
+    background: #0B0D1A; border: 1px solid #1E2235; border-radius: 8px;
+    padding: 14px; overflow-x: auto; margin: 12px 0;
+}
+.answer-body pre code { background: none; padding: 0; color: #E2E8F0; }
+.answer-body strong { color: #E2E8F0; }
+.answer-body blockquote {
+    border-left: 3px solid #7C3AED; padding: 8px 16px; margin: 12px 0;
+    background: #0B0D1A; border-radius: 0 8px 8px 0; color: #94A3B8;
+}
+
+.your-question {
+    background: #0B0D1A; border: 1px solid #1E2235; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 16px; font-size: 0.85rem;
+    color: #94A3B8; display: flex; align-items: flex-start; gap: 8px;
+}
+.your-question strong { color: #A855F7; white-space: nowrap; }
+.your-question span { color: #CBD5E1; }
+
+@keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+{% endblock %}
+
+{% block content %}
+<div class="pdf-container">
+    <div class="grid-2">
+        <!-- Upload PDF -->
+        <div class="card">
+            <h2>&#128196; Upload PDF</h2>
+            <p style="color:#64748B;font-size:0.82rem;margin-bottom:16px;">
+                Upload a PDF document to study from. The AI will read and understand its contents.
+            </p>
+            <form method="POST" action="/pdf/upload" enctype="multipart/form-data" id="uploadForm">
+                <div class="upload-zone" id="uploadZone" onclick="document.getElementById('pdfFile').click();">
+                    <span class="upload-icon">&#128196;</span>
+                    <p><strong style="color:#A855F7;">Click to upload</strong> or drag and drop</p>
+                    <p style="font-size:0.75rem;">PDF files only (max 20MB)</p>
+                    <span class="file-name" id="fileName"></span>
+                    <input
+                        type="file"
+                        name="pdf_file"
+                        id="pdfFile"
+                        accept=".pdf"
+                        required
+                        style="position:absolute;width:0;height:0;opacity:0;pointer-events:none;"
+                        onchange="showFileName(this)"
+                    >
+                </div>
+
+                <div class="form-group" style="margin-top:14px;">
+                    <label for="subject">Subject / Topic</label>
+                    <input
+                        type="text"
+                        name="subject"
+                        id="subject"
+                        class="form-input"
+                        placeholder="e.g. Machine Learning, Physics, History"
+                        required
+                    >
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;">
+                    &#11014; Upload PDF
+                </button>
+            </form>
+        </div>
+
+        <!-- Ask Question about PDF -->
+        <div class="card">
+            <h2>&#10148; Ask About a PDF</h2>
+            <p style="color:#64748B;font-size:0.82rem;margin-bottom:16px;">
+                Select a PDF and ask any question about its contents.
+            </p>
+            <form method="POST" action="/pdf/ask" id="askPdfForm">
+                <div class="form-group">
+                    <label for="pdfSelect">Select PDF</label>
+                    <select name="pdf_id" id="pdfSelect" class="form-select" required>
+                        <option value="" disabled {% if not selected_pdf %}selected{% endif %}>
+                            -- Choose a PDF --
+                        </option>
+                        {% if pdfs %}
+                        {% for pdf in pdfs %}
+                        <option value="{{ pdf.id }}" {% if selected_pdf and selected_pdf == pdf.id %}selected{% endif %}>
+                            {{ pdf.original_name }} ({{ pdf.subject }})
+                        </option>
+                        {% endfor %}
+                        {% endif %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="pdfQuestion">Your Question</label>
+                    <textarea
+                        name="question"
+                        id="pdfQuestion"
+                        class="form-textarea"
+                        placeholder="Ask something about the selected PDF..."
+                        required
+                    >{{ question if question else '' }}</textarea>
+                </div>
+
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <button type="submit" class="btn btn-primary" id="askPdfBtn" onclick="showPdfLoading()"
+                        {% if not pdfs %}disabled style="opacity:0.5;cursor:not-allowed;"{% endif %}>
+                        &#10148; Ask AI
+                    </button>
+                    <span class="loading" id="pdfLoadingIndicator">
+                        <span class="spinner"></span>
+                        Analyzing PDF...
+                    </span>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Uploaded PDFs List -->
+    <div class="card" style="margin-top:20px;">
+        <h2>&#128218; Uploaded PDFs</h2>
+        {% if pdfs %}
+        <div class="pdf-list">
+            {% for pdf in pdfs %}
+            <div class="pdf-item">
+                <div class="pdf-item-info">
+                    <div class="pdf-item-icon">&#128196;</div>
+                    <div class="pdf-item-details">
+                        <div class="name">{{ pdf.original_name }}</div>
+                        <div class="meta">
+                            <span>{{ pdf.page_count }} page{{ 's' if pdf.page_count != 1 else '' }}</span>
+                            <span>&middot;</span>
+                            <span>{{ pdf.uploaded_at }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="pdf-item-tags">
+                    <span class="tag tag-purple">{{ pdf.subject }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="icon">&#128196;</div>
+            <p>No PDFs uploaded yet. Upload your first PDF to start studying!</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Answer Section -->
+    {% if answer %}
+    <div class="answer-card">
+        <div class="answer-header">
+            <h2>&#10024; AI Answer</h2>
+            <div class="answer-meta">
+                {% if elapsed %}
+                <span class="response-time">&#9201; {{ elapsed }}s</span>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if question %}
+        <div class="your-question">
+            <strong>Q:</strong>
+            <span>{{ question }}</span>
+        </div>
+        {% endif %}
+
+        <div class="answer-body">
+            {{ answer | safe }}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function showFileName(input) {
+        var label = document.getElementById('fileName');
+        if (input.files && input.files[0]) {
+            label.textContent = input.files[0].name;
+            label.style.display = 'block';
+        }
+    }
+
+    function showPdfLoading() {
+        var sel = document.getElementById('pdfSelect').value;
+        var q = document.getElementById('pdfQuestion').value.trim();
+        if (sel && q) {
+            document.getElementById('askPdfBtn').style.display = 'none';
+            document.getElementById('pdfLoadingIndicator').classList.add('active');
+        }
+    }
+
+    /* Drag-and-drop support */
+    (function () {
+        var zone = document.getElementById('uploadZone');
+        var input = document.getElementById('pdfFile');
+
+        ['dragenter', 'dragover'].forEach(function (evt) {
+            zone.addEventListener(evt, function (e) {
+                e.preventDefault();
+                zone.classList.add('dragover');
+            });
+        });
+        ['dragleave', 'drop'].forEach(function (evt) {
+            zone.addEventListener(evt, function (e) {
+                e.preventDefault();
+                zone.classList.remove('dragover');
+            });
+        });
+        zone.addEventListener('drop', function (e) {
+            var files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type === 'application/pdf') {
+                input.files = files;
+                showFileName(input);
+            }
+        });
+    })();
+</script>
+{% endblock %}
