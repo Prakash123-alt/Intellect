@@ -105,6 +105,19 @@
 .source-lecture { background: #1a1040; color: #C084FC; }
 .source-transcript { background: #1E3A5F; color: #93C5FD; }
 .source-material { background: #064E3B; color: #6EE7B7; }
+.source-media { background: #4a1d1d; color: #fca5a5; }
+
+.transcript-box {
+    background: #0B0D1A;
+    border: 1px solid #1E2235;
+    border-radius: 8px;
+    padding: 16px;
+    max-height: 320px;
+    overflow-y: auto;
+    color: #94A3B8;
+    font-size: 0.85rem;
+    white-space: pre-wrap;
+}
 
 @keyframes fadeSlideIn {
     from { opacity: 0; transform: translateY(12px); }
@@ -114,9 +127,9 @@
 
 {% block content %}
 <div class="notes-container">
-    <!-- Convert Lecture to Notes Form -->
+    <!-- Text to Notes Form -->
     <div class="card convert-form">
-        <h2>&#9997; Convert to Smart Notes</h2>
+        <h2>&#9997; Convert Lecture Text to Notes</h2>
         <p style="color:#64748B;font-size:0.82rem;margin-bottom:16px;">
             Paste your lecture content, transcript, or study material and AI will transform it into well-structured, easy-to-review notes.
         </p>
@@ -149,10 +162,45 @@
         </form>
     </div>
 
+    <!-- Audio/Video Upload Form -->
+    <div class="card convert-form" style="margin-top:20px;">
+        <h2>&#127909; Convert Audio/Video Lecture</h2>
+        <p style="color:#64748B;font-size:0.82rem;margin-bottom:16px;">
+            Upload recorded lectures, classroom recordings, seminars, or educational videos. AI will extract audio, transcribe it, and generate structured notes, flashcards, quizzes, and more.
+        </p>
+        <form method="POST" action="/notes/convert/media" id="mediaForm" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="media_title">Title</label>
+                <input type="text" name="title" id="media_title" class="form-input"
+                       placeholder="e.g. Neural Networks Lecture 1" required>
+            </div>
+            <div class="form-group">
+                <label for="media_subject">Subject</label>
+                <input type="text" name="subject" id="media_subject" class="form-input"
+                       placeholder="e.g. Machine Learning" required>
+            </div>
+            <div class="form-group">
+                <label for="media_file">Media File</label>
+                <input type="file" name="media_file" id="media_file" class="form-input"
+                       accept=".mp3,.wav,.m4a,.mp4,.mkv,.mov,.avi,.webm" required>
+                <small style="color:#64748B;">Supported: MP3, WAV, M4A, MP4, MKV, MOV, AVI, WEBM</small>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <button type="submit" class="btn btn-primary" id="mediaSubmitBtn" onclick="showMediaLoading()">
+                    &#127909; Convert Media
+                </button>
+                <span class="loading" id="mediaLoadingIndicator">
+                    <span class="spinner"></span>
+                    Processing media...
+                </span>
+            </div>
+        </form>
+    </div>
+
     <!-- Saved Notes List -->
     <div class="card" style="margin-top:20px;">
         <h2>&#128218; Your Notes</h2>
-        {% if notes %}
+        {% if notes or media_notes %}
         <div class="notes-list">
             {% for note in notes %}
             <a href="/notes?view={{ note.id }}" class="note-item">
@@ -177,6 +225,22 @@
                 </div>
             </a>
             {% endfor %}
+
+            {% for m in media_notes %}
+            <a href="/notes?media={{ m.id }}" class="note-item">
+                <div class="note-item-left">
+                    <div class="note-item-icon">&#127909;</div>
+                    <div class="note-item-info">
+                        <h3>{{ m.title }}</h3>
+                        <span>{{ m.subject }}{% if m.duration %} &bull; {{ (m.duration // 60)|int }}m {{ (m.duration % 60)|int }}s{% endif %}</span>
+                    </div>
+                </div>
+                <div class="note-item-right">
+                    <span class="tag source-media">{{ m.file_type|upper }} Media</span>
+                    <span style="font-size:0.75rem;color:#64748B;">{{ m.created_at }}</span>
+                </div>
+            </a>
+            {% endfor %}
         </div>
         {% else %}
         <div class="empty-state">
@@ -186,7 +250,7 @@
         {% endif %}
     </div>
 
-    <!-- Selected Note Detail View -->
+    <!-- Selected Text Note Detail View -->
     {% if selected_note %}
     <div class="note-detail">
         <div class="card">
@@ -216,6 +280,63 @@
         </div>
     </div>
     {% endif %}
+
+    <!-- Selected Media Note Detail View -->
+    {% if selected_media %}
+    <div class="note-detail">
+        <div class="card">
+            <div class="note-detail-header">
+                <div>
+                    <h2>&#127909; {{ selected_media.title }}</h2>
+                    <div class="note-detail-meta">
+                        <span class="tag tag-purple">{{ selected_media.subject }}</span>
+                        <span class="tag source-media">{{ selected_media.file_type|upper }} Media</span>
+                        {% if selected_media.duration %}
+                        <span class="tag tag-blue">{{ (selected_media.duration // 60)|int }}m {{ (selected_media.duration % 60)|int }}s</span>
+                        {% endif %}
+                        <span style="font-size:0.75rem;color:#64748B;">Created: {{ selected_media.created_at }}</span>
+                    </div>
+                </div>
+                <a href="/notes" class="btn btn-secondary btn-sm">&#8592; All Notes</a>
+            </div>
+
+            {% if selected_media.summary_html %}
+            <h3 style="color:#E2E8F0;margin-bottom:10px;">Summary</h3>
+            <div class="note-content">
+                {{ selected_media.summary_html|safe }}
+            </div>
+            {% endif %}
+
+            <h3 style="color:#E2E8F0;margin:20px 0 10px;">Notes</h3>
+            <div class="note-content">
+                {{ selected_media.notes_html|safe }}
+            </div>
+
+            {% if selected_media.revision_html %}
+            <h3 style="color:#E2E8F0;margin:20px 0 10px;">Revision Notes</h3>
+            <div class="note-content">
+                {{ selected_media.revision_html|safe }}
+            </div>
+            {% endif %}
+
+            {% if selected_media.topics %}
+            <h3 style="color:#E2E8F0;margin:20px 0 10px;">Extracted Topics</h3>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;">
+                {% for t in selected_media.topics %}
+                <span class="tag tag-purple">{{ t.topic_name }} <small style="color:#94A3B8;">({{ t.difficulty }})</small></span>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if selected_media.transcript %}
+            <h3 style="color:#E2E8F0;margin:20px 0 10px;">Full Transcript</h3>
+            <div class="transcript-box">
+                {{ selected_media.transcript }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
 
@@ -228,6 +349,16 @@
         if (title && subject && text) {
             document.getElementById('submitBtn').style.display = 'none';
             document.getElementById('loadingIndicator').classList.add('active');
+        }
+    }
+
+    function showMediaLoading() {
+        var title = document.getElementById('media_title').value.trim();
+        var subject = document.getElementById('media_subject').value.trim();
+        var file = document.getElementById('media_file').value;
+        if (title && subject && file) {
+            document.getElementById('mediaSubmitBtn').style.display = 'none';
+            document.getElementById('mediaLoadingIndicator').classList.add('active');
         }
     }
 </script>

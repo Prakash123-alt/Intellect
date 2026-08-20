@@ -29,12 +29,15 @@ from exam_platform import (
     generate_practice_test, export_prediction, export_quiz,
     get_dashboard_data, UPLOAD_DIR
 )
+from media_notes import (
+    process_media_upload, get_all_media_notes, get_media_note
+)
 
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "intellect-ai-exam-prep-2026")
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB max upload
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100 MB max upload
 
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 MODEL = "openai/gpt-oss-20b"
@@ -488,12 +491,29 @@ def progress_log_session():
 @app.route('/notes', methods=['GET'])
 def notes_page():
     notes = get_all_notes()
+    media_notes = get_all_media_notes()
     note_id = request.args.get('view')
+    media_id = request.args.get('media')
     selected_note = get_note(int(note_id)) if note_id else None
+    selected_media = get_media_note(int(media_id)) if media_id else None
     if selected_note:
         selected_note['content_html'] = markdown.markdown(
             selected_note['content'], extensions=['tables', 'fenced_code'])
-    return render_template('notes.html', notes=notes, selected_note=selected_note,
+    if selected_media:
+        selected_media['notes_html'] = markdown.markdown(
+            selected_media['notes'], extensions=['tables', 'fenced_code'])
+        if selected_media.get('summary'):
+            selected_media['summary_html'] = markdown.markdown(
+                selected_media['summary'], extensions=['tables', 'fenced_code'])
+        if selected_media.get('revision_notes'):
+            selected_media['revision_html'] = markdown.markdown(
+                selected_media['revision_notes'], extensions=['tables', 'fenced_code'])
+        try:
+            selected_media['full_data'] = json.loads(selected_media.get('full_data', '{}'))
+        except (json.JSONDecodeError, TypeError):
+            selected_media['full_data'] = {}
+    return render_template('notes.html', notes=notes, media_notes=media_notes,
+                         selected_note=selected_note, selected_media=selected_media,
                          active_page='notes')
 
 
@@ -515,6 +535,35 @@ def notes_convert():
         return redirect(url_for('notes_page', view=note_id))
     except Exception as e:
         flash(f'Error converting notes: {str(e)}', 'error')
+        return redirect(url_for('notes_page'))
+
+
+@app.route('/notes/convert/media', methods=['POST'])
+def notes_convert_media():
+    if 'media_file' not in request.files:
+        flash('No media file selected', 'error')
+        return redirect(url_for('notes_page'))
+
+    file = request.files['media_file']
+    if file.filename == '':
+        flash('No file selected', 'error')
+        return redirect(url_for('notes_page'))
+
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in {'.mp3', '.wav', '.m4a', '.mp4', '.mkv', '.mov', '.avi', '.webm'}:
+        flash('Please upload a supported audio/video file (MP3, WAV, M4A, MP4, MKV, MOV, AVI, WEBM)', 'error')
+        return redirect(url_for('notes_page'))
+
+    title = request.form.get('title', 'Untitled Media Notes')
+    subject = request.form.get('subject', 'General')
+
+    try:
+        note_id = process_media_upload(file, title, subject, client, MODEL)
+        flash(f'Media lecture converted: "{title}"', 'success')
+        return redirect(url_for('notes_page', media=note_id))
+    except Exception as e:
+        app.logger.error(f'Media notes conversion error: {e}', exc_info=True)
+        flash(f'Error converting media: {str(e)}', 'error')
         return redirect(url_for('notes_page'))
 
 

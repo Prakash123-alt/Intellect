@@ -508,6 +508,49 @@ def init_exam_db():
         FOREIGN KEY (prediction_id) REFERENCES predictions(id)
     )''')
 
+    # ─── Media / Lecture to Notes ───────────────────────────────────────
+
+    c.execute('''CREATE TABLE IF NOT EXISTS uploaded_media (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT DEFAULT 'default',
+        file_name TEXT NOT NULL,
+        file_type TEXT,
+        duration REAL,
+        original_name TEXT,
+        upload_date DATETIME DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS transcripts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        media_id INTEGER NOT NULL,
+        transcript TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (media_id) REFERENCES uploaded_media(id)
+    )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS extracted_topics (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        media_id INTEGER NOT NULL,
+        topic_name TEXT,
+        difficulty TEXT,
+        importance_score REAL DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (media_id) REFERENCES uploaded_media(id)
+    )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS generated_notes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        media_id INTEGER NOT NULL,
+        subject TEXT,
+        title TEXT,
+        notes TEXT,
+        summary TEXT,
+        revision_notes TEXT,
+        full_data TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (media_id) REFERENCES uploaded_media(id)
+    )''')
+
     conn.commit()
     conn.close()
     logger.info("Exam platform database initialized")
