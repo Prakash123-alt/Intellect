@@ -63,8 +63,14 @@ def _extract_audio_to_mp3(input_path, output_mp3):
             check=True
         )
     except subprocess.CalledProcessError as e:
-        logger.error(f'ffmpeg error: {e.stderr}')
-        raise RuntimeError(f'Audio extraction failed: {e.stderr[:200]}')
+        logger.error(f'ffmpeg error:\n{e.stderr}')
+        err_text = (e.stderr or '').strip()
+        if 'does not contain any stream' in err_text:
+            raise RuntimeError('No audio stream found in the uploaded file.')
+        # The actual error is usually at the end of stderr; the start is just a version banner.
+        err_lines = err_text.splitlines()
+        tail = '\n'.join(err_lines[-15:]) if len(err_lines) > 15 else err_text
+        raise RuntimeError(f'Audio extraction failed: {tail}')
 
 
 def _transcribe_mp3(mp3_path, client):
@@ -103,13 +109,33 @@ Return ONLY a single JSON object with these keys:
 
 Use \\n for newlines inside string values. Do not wrap the JSON in markdown code blocks. Do not include any text outside the JSON object."""
 
-    raw = _ai_call(
-        client,
-        model,
-        'You are an expert educational AI. Return strictly valid JSON. No markdown, no explanation.',
-        prompt
-    )
-    return _parse_json_response(raw)
+    # First try: ask the model to emit a strict JSON object via response_format.
+    try:
+        resp = client.chat.completions.create(
+            model=model,
+            messages=[
+                {'role': 'system', 'content': 'You are an expert educational AI. Return only a single JSON object. No arrays at the top level, no markdown, no explanation.'},
+                {'role': 'user', 'content': prompt}
+            ],
+            temperature=0.7,
+            response_format={'type': 'json_object'}
+        )
+        raw = resp.choices[0].message.content
+        analysis = _parse_json_response(raw)
+    except Exception as e:
+        logger.warning(f'JSON-object call failed or not supported ({e}), falling back to plain generation')
+        raw = _ai_call(
+            client,
+            model,
+            'You are an expert educational AI. Return strictly valid JSON. No markdown, no explanation.',
+            prompt
+        )
+        analysis = _parse_json_response(raw)
+
+    if not isinstance(analysis, dict):
+        logger.error(f'AI response was not a JSON object (type: {type(analysis)}). Full response: {json.dumps(analysis)[:500]}')
+        raise ValueError('AI did not return a valid JSON object for media analysis')
+    return analysis
 
 
 def process_media_upload(file, title, subject, client, model, user_id='default'):
