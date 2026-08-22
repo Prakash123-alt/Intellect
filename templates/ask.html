@@ -3,7 +3,7 @@
 {% block page_title %}Ask AI{% endblock %}
 
 {% block extra_css %}
-.ask-container { max-width: 860px; }
+.ask-container { max-width: 960px; }
 
 .question-card textarea {
     min-height: 130px;
@@ -83,6 +83,18 @@
 .your-question strong { color: #A855F7; white-space: nowrap; }
 .your-question span { color: #CBD5E1; }
 
+.kb-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.kb-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; background: #0B0D1A; border: 1px solid #1E2235;
+    border-radius: 8px; color: #CBD5E1;
+}
+.kb-item span { font-size: 0.85rem; }
+
+.rag-hint {
+    color: #64748B; font-size: 0.78rem; margin-top: 6px;
+}
+
 @keyframes fadeSlideIn {
     from { opacity: 0; transform: translateY(12px); }
     to { opacity: 1; transform: translateY(0); }
@@ -91,11 +103,59 @@
 
 {% block content %}
 <div class="ask-container">
+    <!-- Knowledge Base Upload -->
+    <div class="card" style="margin-bottom:24px;">
+        <h2>&#128218; RAG Knowledge Base</h2>
+        <p style="color:#64748B;font-size:0.82rem;margin-bottom:16px;">
+            Upload PDF, DOCX, PPTX, or TXT files to build a subject-specific knowledge base. Ask questions below with "Use knowledge base" enabled to get answers grounded in these documents.
+        </p>
+        <form method="POST" action="/knowledge/upload" enctype="multipart/form-data" id="kbForm">
+            <div class="form-group">
+                <label for="kb_subject">Subject</label>
+                <input type="text" name="subject" id="kb_subject" class="form-input"
+                       placeholder="e.g. Machine Learning" required value="{{ subject }}">
+            </div>
+            <div class="form-group">
+                <label for="kb_file">Document</label>
+                <input type="file" name="kb_file" id="kb_file" class="form-input"
+                       accept=".pdf,.docx,.pptx,.txt" required>
+                <small style="color:#64748B;">Supported: PDF, DOCX, PPTX, TXT</small>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <button type="submit" class="btn btn-primary" id="kbSubmit" onclick="showKbLoading()">
+                    &#128190; Index Document
+                </button>
+                <span class="loading" id="kbLoadingIndicator">
+                    <span class="spinner"></span>
+                    Indexing...
+                </span>
+            </div>
+        </form>
+
+        {% if documents %}
+        <div class="kb-list">
+            {% for doc in documents %}
+            <div class="kb-item">
+                <div>
+                    <strong>{{ doc.original_name }}</strong>
+                    <span style="color:#64748B;"> &bull; {{ doc.subject }} &bull; {{ doc.doc_type|upper }}</span>
+                </div>
+                <span class="tag tag-purple">{{ doc.chunk_count or 0 }} chunks</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="color:#64748B;font-size:0.85rem;margin-top:16px;">
+            No documents indexed for this subject. Upload a document to start.
+        </p>
+        {% endif %}
+    </div>
+
     <!-- Ask Form -->
     <div class="card question-card">
         <h2>&#10148; Ask a Question</h2>
         <p style="color:#64748B;font-size:0.82rem;margin-bottom:14px;">
-            Ask any academic question and get a detailed, AI-powered answer.
+            Ask any academic question. Toggle "Use knowledge base" to answer from uploaded documents.
         </p>
         <form method="POST" action="/ask" id="askForm">
             <div class="form-group">
@@ -109,6 +169,18 @@
                     style="min-height:130px;"
                 >{{ question if question else '' }}</textarea>
             </div>
+
+            <div class="form-group">
+                <label for="rag_subject">Subject / Knowledge Base (required for RAG)</label>
+                <input type="text" name="subject" id="rag_subject" class="form-input"
+                       placeholder="e.g. Machine Learning" value="{{ subject }}">
+            </div>
+
+            <div class="form-group" style="display:flex;align-items:center;gap:10px;">
+                <input type="checkbox" name="use_rag" id="use_rag" value="on">
+                <label for="use_rag" style="margin-bottom:0;">Use knowledge base (RAG)</label>
+            </div>
+            <p class="rag-hint">When enabled, the AI will look up relevant passages from your uploaded documents for the subject above.</p>
 
             <!-- Suggestion Chips -->
             <div style="margin-bottom:16px;">
@@ -161,6 +233,22 @@
         <div class="answer-body">
             {{ answer | safe }}
         </div>
+
+        <!-- Visualize Answer -->
+        <form method="POST" action="/visualize" style="margin-top:20px;">
+            <input type="hidden" name="content" value="{{ raw }}">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                <select name="diagram_type" class="form-input" style="width:auto;min-width:160px;">
+                    <option value="mindmap">Mind Map</option>
+                    <option value="flowchart">Flowchart</option>
+                    <option value="concept">Concept Map</option>
+                    <option value="process">Process Diagram</option>
+                </select>
+                <button type="submit" class="btn btn-secondary">
+                    &#127912; Visualize Answer
+                </button>
+            </div>
+        </form>
     </div>
     {% endif %}
 </div>
@@ -178,6 +266,15 @@
         if (q) {
             document.getElementById('submitBtn').style.display = 'none';
             document.getElementById('loadingIndicator').classList.add('active');
+        }
+    }
+
+    function showKbLoading() {
+        var subject = document.getElementById('kb_subject').value.trim();
+        var file = document.getElementById('kb_file').value;
+        if (subject && file) {
+            document.getElementById('kbSubmit').style.display = 'none';
+            document.getElementById('kbLoadingIndicator').classList.add('active');
         }
     }
 </script>

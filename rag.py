@@ -84,3 +84,49 @@ def delete_subject_documents(subject):
         coll.delete(where={'subject': subject})
     except Exception as e:
         logger.error(f"Failed to delete Chroma docs for subject {subject}: {e}")
+
+
+# ─── General Knowledge Base RAG ──────────────────────────────────────
+
+_KB_COLLECTION = None
+
+
+def _get_kb_collection():
+    global _KB_COLLECTION
+    if _KB_COLLECTION is None:
+        import chromadb
+        client = chromadb.PersistentClient(path=CHROMA_DIR)
+        _KB_COLLECTION = client.get_or_create_collection('knowledge_base')
+    return _KB_COLLECTION
+
+
+def index_knowledge(doc_id, subject, doc_type, text):
+    """Chunk a knowledge document and add it to the RAG knowledge collection."""
+    chunks = chunk_text(text)
+    if not chunks:
+        return 0
+    try:
+        coll = _get_kb_collection()
+        ids = [f"kb{doc_id}_chunk{i}" for i in range(len(chunks))]
+        metadatas = [{
+            'doc_id': doc_id,
+            'subject': subject,
+            'doc_type': doc_type
+        } for _ in chunks]
+        coll.add(documents=chunks, ids=ids, metadatas=metadatas)
+        return len(chunks)
+    except Exception as e:
+        logger.error(f"Failed to index knowledge doc {doc_id} into Chroma: {e}")
+        return 0
+
+
+def query_knowledge(subject, query_text, top_k=5):
+    """Retrieve the most relevant knowledge chunks for a subject."""
+    try:
+        coll = _get_kb_collection()
+        result = coll.query(query_texts=[query_text], n_results=top_k, where={'subject': subject})
+        docs = result.get('documents', [[]])[0]
+        return docs
+    except Exception as e:
+        logger.error(f"Knowledge Chroma query failed: {e}")
+        return []

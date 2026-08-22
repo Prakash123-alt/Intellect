@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+{% block title %}Intellect AI - YouTube Analyzer{% endblock %}
+{% block page_title %}YouTube Analyzer{% endblock %}
+
+{% block extra_css %}
+.yt-container { max-width: 1100px; }
+.yt-input { min-height: 48px; }
+.tab-row { display: flex; gap: 4px; border-bottom: 1px solid #1E2235; margin-bottom: 20px; flex-wrap: wrap; }
+.tab-btn {
+    background: transparent; color: #94A3B8; border: none; padding: 10px 16px;
+    font-family: 'Inter', sans-serif; font-weight: 600; cursor: pointer;
+    border-bottom: 2px solid transparent; transition: all 0.2s;
+}
+.tab-btn:hover { color: #E2E8F0; }
+.tab-btn.active { color: #A855F7; border-bottom-color: #A855F7; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+{% endblock %}
+
+{% block content %}
+<div class="yt-container">
+    <div class="grid-2" style="align-items:start;">
+        <!-- Input Card -->
+        <div class="card convert-form" style="align-self:start;">
+            <h2>&#127909; Analyze YouTube Video</h2>
+            <p style="color:#64748B;font-size:0.82rem;margin-bottom:16px;">
+                Paste an educational YouTube link and AI will extract its transcript, generate notes, flashcards, quizzes, a mind map, and a study plan.
+            </p>
+            <form method="POST" action="/youtube/analyze" id="ytForm">
+                <div class="form-group">
+                    <label for="video_url">YouTube URL</label>
+                    <input type="url" name="video_url" id="video_url" class="form-input" required
+                           placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/...">
+                </div>
+                <div class="form-group">
+                    <label for="title">Notes Title</label>
+                    <input type="text" name="title" id="title" class="form-input"
+                           placeholder="e.g. Machine Learning Full Course">
+                </div>
+                <div class="form-group">
+                    <label for="subject">Subject</label>
+                    <input type="text" name="subject" id="subject" class="form-input" required
+                           placeholder="e.g. Machine Learning">
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                    <button type="submit" class="btn btn-primary" id="ytSubmit" onclick="showLoading()">
+                        &#127909; Analyze Video
+                    </button>
+                    <span class="loading" id="ytLoading" style="display:none;">
+                        <span class="spinner"></span>
+                        Analyzing (this may take a minute)...
+                    </span>
+                </div>
+            </form>
+        </div>
+
+        <!-- History -->
+        <div class="card" style="align-self:start;">
+            <h2>&#128218; Analyzed Videos</h2>
+            {% if notes %}
+            <div class="notes-list">
+                {% for n in notes %}
+                <a href="/youtube?view={{ n.id }}" class="note-item">
+                    <div class="note-item-left">
+                        <div class="note-item-icon">&#127909;</div>
+                        <div class="note-item-info">
+                            <h3>{{ n.title }}</h3>
+                            <span>{{ n.subject }}{% if n.duration %} &bull; {{ (n.duration // 60)|int }}m{% endif %}</span>
+                        </div>
+                    </div>
+                    <div class="note-item-right">
+                        <span style="font-size:0.75rem;color:#64748B;">{{ n.created_at }}</span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <p>No YouTube videos analyzed yet.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if selected %}
+    <div class="note-detail" style="margin-top:24px;">
+        <div class="card">
+            <div class="note-detail-header">
+                <div style="display:flex;align-items:flex-start;gap:18px;flex-wrap:wrap;">
+                    {% if selected.youtube_id %}
+                    <a href="https://www.youtube.com/watch?v={{ selected.youtube_id }}" target="_blank" style="flex-shrink:0;">
+                        <img src="https://img.youtube.com/vi/{{ selected.youtube_id }}/mqdefault.jpg"
+                             alt="{{ selected.video_title }} thumbnail"
+                             style="width:180px;height:auto;border-radius:8px;border:1px solid #1E2235;">
+                    </a>
+                    {% endif %}
+                    <div>
+                        <h2>&#127909; {{ selected.title }}</h2>
+                        <div class="note-detail-meta" style="margin-top:8px;">
+                            {% if selected.video_title %}
+                            <span class="tag tag-purple">{{ selected.video_title }}</span>
+                            {% endif %}
+                            {% if selected.channel_name %}
+                            <span class="tag tag-blue">{{ selected.channel_name }}</span>
+                            {% endif %}
+                            {% if selected.duration_formatted %}
+                            <span class="tag tag-orange">{{ selected.duration_formatted }}</span>
+                            {% endif %}
+                            {% if selected.upload_date %}
+                            <span class="tag tag-green">{{ selected.upload_date }}</span>
+                            {% endif %}
+                        </div>
+                        {% if selected.video_url %}
+                        <p style="margin-top:10px;">
+                            <a href="{{ selected.video_url }}" target="_blank" style="color:#A855F7;font-size:0.85rem;word-break:break-all;">{{ selected.video_url }}</a>
+                        </p>
+                        {% endif %}
+                        {% if selected.description %}
+                        <p style="color:#64748B;font-size:0.8rem;margin-top:10px;line-height:1.5;">
+                            <strong>Description:</strong> {{ selected.description[:350] }}{% if selected.description|length > 350 %}...{% endif %}
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+                <a href="/youtube" class="btn btn-secondary btn-sm">&#8592; All YouTube</a>
+            </div>
+
+            <div class="tab-row">
+                <button class="tab-btn active" data-tab="notes" onclick="switchTab('notes')">Notes</button>
+                <button class="tab-btn" data-tab="summary" onclick="switchTab('summary')">Summary</button>
+                <button class="tab-btn" data-tab="flashcards" onclick="switchTab('flashcards')">Flashcards</button>
+                <button class="tab-btn" data-tab="quiz" onclick="switchTab('quiz')">Quiz</button>
+                <button class="tab-btn" data-tab="revision" onclick="switchTab('revision')">Revision Notes</button>
+                <button class="tab-btn" data-tab="mindmap" onclick="switchTab('mindmap')">Mind Map</button>
+                <button class="tab-btn" data-tab="transcript" onclick="switchTab('transcript')">Transcript</button>
+            </div>
+
+            <div id="tab-notes" class="tab-content active">
+                <div class="note-content">{{ selected.notes_html|safe }}</div>
+            </div>
+            <div id="tab-summary" class="tab-content">
+                <div class="note-content">{{ selected.summary_html|safe }}</div>
+            </div>
+            <div id="tab-revision" class="tab-content">
+                <div class="note-content">{{ selected.revision_html|safe }}</div>
+            </div>
+            <div id="tab-transcript" class="tab-content">
+                <div class="transcript-box">{{ selected.transcript }}</div>
+            </div>
+            <div id="tab-flashcards" class="tab-content">
+                {% if selected.full_data.flashcards %}
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                    {% for f in selected.full_data.flashcards %}
+                    <div class="card" style="padding:14px;">
+                        <strong style="color:#E2E8F0;">Q:</strong> {{ f.question }}<br>
+                        <strong style="color:#A855F7;">A:</strong> {{ f.answer }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p style="color:#64748B;">No flashcards generated.</p>
+                {% endif %}
+            </div>
+            <div id="tab-quiz" class="tab-content">
+                {% if selected.quiz %}
+                <div style="display:flex;flex-direction:column;gap:12px;">
+                    {% for q in selected.quiz %}
+                    <div class="card" style="padding:14px;">
+                        <div style="margin-bottom:6px;">
+                            <strong style="color:#E2E8F0;">Q{{ loop.index }}:</strong>
+                            {{ q.question }}
+                            <span class="tag tag-purple" style="margin-left:8px;">{{ q.difficulty }}</span>
+                        </div>
+                        {% if q.options and q.question_type == 'mcq' %}
+                        <div style="margin:8px 0 8px 12px;color:#CBD5E1;">
+                            {% for opt in q.options %}
+                            <div>&bull; {{ opt }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <div style="margin-top:8px;">
+                            <strong style="color:#A855F7;">Answer:</strong> {{ q.answer }}
+                        </div>
+                        {% if q.explanation %}
+                        <div style="margin-top:6px;color:#94A3B8;font-size:0.85rem;">
+                            {{ q.explanation }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p style="color:#64748B;">No quiz generated.</p>
+                {% endif %}
+            </div>
+            <div id="tab-mindmap" class="tab-content">
+                {% if selected.full_data.mind_map %}
+                <pre style="background:#0B0D1A;padding:16px;border-radius:8px;overflow:auto;color:#94A3B8;font-size:0.85rem;">{{ selected.full_data.mind_map }}</pre>
+                {% else %}
+                <p style="color:#64748B;">No mind map generated.</p>
+                {% endif %}
+            </div>
+
+            {% if selected.topics %}
+            <h3 style="color:#E2E8F0;margin:24px 0 10px;">Extracted Topics</h3>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;">
+                {% for t in selected.topics %}
+                <span class="tag tag-purple">{{ t.topic_name }} <small style="color:#94A3B8;">({{ t.difficulty }})</small></span>
+                {% endfor %}
+            </div>
+            <form method="POST" action="/youtube/create-plan" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                <input type="hidden" name="note_id" value="{{ selected.id }}">
+                <input type="hidden" name="subject" value="{{ selected.subject }}">
+                <div class="form-group" style="margin:0;min-width:120px;">
+                    <input type="number" name="daily_hours" class="form-input" value="1" min="0.5" max="12" step="0.5" style="width:120px;">
+                </div>
+                <button type="submit" class="btn btn-success">&#128197; Create Study Plan</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function showLoading() {
+        var url = document.getElementById('video_url').value.trim();
+        var subject = document.getElementById('subject').value.trim();
+        if (url && subject) {
+            document.getElementById('ytSubmit').style.display = 'none';
+            document.getElementById('ytLoading').style.display = 'inline-flex';
+        }
+    }
+
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-content').forEach(function(el) { el.classList.remove('active'); });
+        document.querySelectorAll('.tab-btn').forEach(function(el) { el.classList.remove('active'); });
+        document.getElementById('tab-' + tab).classList.add('active');
+        document.querySelector('.tab-btn[data-tab="' + tab + '"]').classList.add('active');
+    }
+</script>
+{% endblock %}

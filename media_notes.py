@@ -7,7 +7,7 @@ from datetime import datetime
 from werkzeug.utils import secure_filename
 
 from imageio_ffmpeg import get_ffmpeg_exe
-from exam_platform import _get_conn, _ai_call, _parse_json_response, UPLOAD_DIR
+from exam_platform import _get_conn, _ai_call, _parse_json_response, convert_to_notes, UPLOAD_DIR
 
 logger = logging.getLogger('media_notes')
 
@@ -179,10 +179,19 @@ def process_media_upload(file, title, subject, client, model, user_id='default')
     try:
         analysis = _generate_media_analysis(client, model, transcript, subject, title)
     except Exception as e:
-        logger.error(f'AI analysis failed: {e}')
+        logger.error(f'Structured AI analysis failed ({e}), falling back to plain note generation.')
+        # Always produce usable notes from the transcript, even if the JSON pipeline fails.
+        if transcript and transcript.strip():
+            try:
+                notes_md = convert_to_notes(client, model, transcript, subject, title)
+            except Exception as conv_err:
+                logger.error(f'Plain note generation also failed: {conv_err}')
+                notes_md = f'## Transcript\n\n{transcript}\n\n_AI analysis could not be completed for this media._'
+        else:
+            notes_md = 'No speech detected in the uploaded media.'
         analysis = {
             'summary': '',
-            'notes': 'AI analysis could not be completed for this media.',
+            'notes': notes_md,
             'topics': [],
             'key_concepts': [],
             'definitions': [],

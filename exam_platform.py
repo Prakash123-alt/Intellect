@@ -551,6 +551,73 @@ def init_exam_db():
         FOREIGN KEY (media_id) REFERENCES uploaded_media(id)
     )''')
 
+    # ─── General Knowledge Base for RAG ─────────────────────────────────
+
+    c.execute('''CREATE TABLE IF NOT EXISTS knowledge_documents (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        subject TEXT NOT NULL,
+        doc_type TEXT,
+        filename TEXT NOT NULL,
+        original_name TEXT,
+        extracted_text TEXT,
+        chunk_count INTEGER DEFAULT 0,
+        uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # ─── YouTube Video Learning Assistant ─────────────────────────────────
+
+    c.execute('''CREATE TABLE IF NOT EXISTS youtube_videos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT DEFAULT 'default',
+        video_url TEXT NOT NULL,
+        youtube_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        channel_name TEXT,
+        duration REAL,
+        upload_date TEXT,
+        description TEXT,
+        transcript TEXT,
+        audio_path TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS youtube_notes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        video_id INTEGER NOT NULL,
+        subject TEXT,
+        title TEXT,
+        notes TEXT,
+        summary TEXT,
+        revision_notes TEXT,
+        full_data TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (video_id) REFERENCES youtube_videos(id)
+    )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS youtube_quizzes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        video_id INTEGER NOT NULL,
+        question TEXT NOT NULL,
+        question_type TEXT DEFAULT 'mcq',
+        options TEXT,
+        answer TEXT,
+        explanation TEXT,
+        difficulty TEXT DEFAULT 'medium',
+        marks INTEGER DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (video_id) REFERENCES youtube_videos(id)
+    )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS youtube_topics (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        video_id INTEGER NOT NULL,
+        topic_name TEXT NOT NULL,
+        difficulty TEXT DEFAULT 'medium',
+        importance_score REAL DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (video_id) REFERENCES youtube_videos(id)
+    )''')
+
     conn.commit()
     conn.close()
     logger.info("Exam platform database initialized")
@@ -617,6 +684,22 @@ def extract_docx_text(filepath):
         return ""
 
 
+def extract_pptx_text(filepath):
+    """Extract text from a PPTX file using python-pptx."""
+    try:
+        import pptx
+        prs = pptx.Presentation(filepath)
+        parts = []
+        for slide in prs.slides:
+            for shape in slide.shapes:
+                if hasattr(shape, 'text') and shape.text.strip():
+                    parts.append(shape.text.strip())
+        return '\n'.join(parts).strip()
+    except Exception as e:
+        logger.error(f"PPTX extraction failed: {e}")
+        return ""
+
+
 def extract_txt_text(filepath):
     """Read plain text from a TXT file, trying a couple of encodings."""
     for encoding in ('utf-8', 'latin-1'):
@@ -629,7 +712,7 @@ def extract_txt_text(filepath):
 
 
 def extract_any_text(filepath, original_name):
-    """Extract text from a PDF, DOCX, or TXT file based on its extension.
+    """Extract text from a PDF, DOCX, PPTX, or TXT file based on its extension.
     Returns (text, page_count).
     """
     ext = original_name.rsplit('.', 1)[-1].lower() if '.' in original_name else ''
@@ -638,6 +721,8 @@ def extract_any_text(filepath, original_name):
         return text, page_count
     if ext == 'docx':
         return extract_docx_text(filepath), 0
+    if ext == 'pptx':
+        return extract_pptx_text(filepath), 0
     if ext == 'txt':
         return extract_txt_text(filepath), 0
     return "", 0
@@ -2066,6 +2151,39 @@ def get_exam_documents(subject=None, doc_type=None):
     if doc_type:
         query += " AND doc_type = ?"
         params.append(doc_type)
+    query += " ORDER BY uploaded_at DESC"
+    c.execute(query, params)
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return rows
+
+
+def save_knowledge_document(subject, doc_type, filename, original_name, text):
+    """Save an uploaded knowledge document and index it into the RAG knowledge base."""
+    import rag
+    conn = _get_conn()
+    c = conn.cursor()
+    c.execute('''INSERT INTO knowledge_documents (subject, doc_type, filename, original_name, extracted_text)
+        VALUES (?, ?, ?, ?, ?)''', (subject, doc_type, filename, original_name, text))
+    doc_id = c.lastrowid
+    conn.commit()
+
+    chunk_count = rag.index_knowledge(doc_id, subject, doc_type, text)
+    if chunk_count:
+        c.execute("UPDATE knowledge_documents SET chunk_count = ? WHERE id = ?", (chunk_count, doc_id))
+        conn.commit()
+    conn.close()
+    return doc_id
+
+
+def get_knowledge_documents(subject=None):
+    conn = _get_conn()
+    c = conn.cursor()
+    query = "SELECT id, subject, doc_type, filename, original_name, chunk_count, uploaded_at FROM knowledge_documents WHERE 1=1"
+    params = []
+    if subject:
+        query += " AND subject = ?"
+        params.append(subject)
     query += " ORDER BY uploaded_at DESC"
     c.execute(query, params)
     rows = [dict(r) for r in c.fetchall()]

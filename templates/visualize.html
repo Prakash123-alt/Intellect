@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% block title %}Intellect AI - Visual Learning{% endblock %}
+{% block page_title %}Visual Learning Generator{% endblock %}
+
+{% block extra_css %}
+.viz-container { max-width: 1200px; }
+
+.diagram-stage {
+    background: #0B0D1A;
+    border: 1px solid #1E2235;
+    border-radius: 12px;
+    padding: 24px;
+    min-height: 400px;
+    overflow: auto;
+    position: relative;
+}
+
+.diagram-canvas {
+    transform-origin: top left;
+    transition: transform 0.2s ease;
+    display: inline-block;
+    min-width: 100%;
+}
+
+.diagram-canvas svg {
+    max-width: none;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+}
+
+.viz-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.viz-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: start;
+}
+
+.viz-form .form-textarea {
+    min-height: 180px;
+}
+
+@media (max-width: 768px) {
+    .viz-form { grid-template-columns: 1fr; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="viz-container">
+    <!-- Input Form -->
+    <div class="card" style="margin-bottom:24px;">
+        <h2>&#127912; Generate Visual Diagram</h2>
+        <p style="color:#64748B;font-size:0.82rem;margin-bottom:16px;">
+            Paste an AI explanation, lecture note, or any study text and generate a mind map, flowchart, concept map, or process diagram.
+        </p>
+        <form method="POST" action="/visualize" id="vizForm" class="viz-form">
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label for="content">Content to Visualize</label>
+                <textarea name="content" id="content" class="form-textarea" required>{{ content }}</textarea>
+            </div>
+            <div class="form-group">
+                <label for="diagram_type">Diagram Type</label>
+                <select name="diagram_type" id="diagram_type" class="form-input">
+                    <option value="mindmap" {% if diagram_type == 'mindmap' %}selected{% endif %}>Mind Map</option>
+                    <option value="flowchart" {% if diagram_type == 'flowchart' %}selected{% endif %}>Flowchart</option>
+                    <option value="concept" {% if diagram_type == 'concept' %}selected{% endif %}>Concept Map</option>
+                    <option value="process" {% if diagram_type == 'process' %}selected{% endif %}>Process Diagram</option>
+                </select>
+            </div>
+            <div style="display:flex;align-items:flex-end;height:100%;padding-bottom:4px;">
+                <button type="submit" class="btn btn-primary" id="vizSubmit">
+                    &#10024; Generate Diagram
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Diagram Output -->
+    {% if mermaid_code %}
+    <div class="card">
+        <h2>&#128200; {{ diagram_type|capitalize }} Diagram</h2>
+        <div class="viz-toolbar">
+            <button class="btn btn-secondary" onclick="zoomOut()">&#8722; Zoom Out</button>
+            <button class="btn btn-secondary" onclick="zoomIn()">&#43; Zoom In</button>
+            <button class="btn btn-secondary" onclick="resetZoom()">Reset</button>
+            <button class="btn btn-secondary" onclick="exportPng()">&#128247; Export PNG</button>
+            <button class="btn btn-secondary" onclick="exportPdf()">&#128196; Export PDF</button>
+            <button class="btn btn-secondary" onclick="copyCode()">&#128203; Copy Mermaid</button>
+        </div>
+        <div class="diagram-stage">
+            <div class="diagram-canvas" id="diagram-canvas">
+                <pre id="mermaid-source" style="display:none;">{{ mermaid_code }}</pre>
+                <div id="mermaid-diagram"></div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+    let currentScale = 1.0;
+
+    function updateZoom() {
+        const canvas = document.getElementById('diagram-canvas');
+        if (canvas) {
+            canvas.style.transform = 'scale(' + currentScale + ')';
+        }
+    }
+
+    function zoomIn() {
+        currentScale = Math.min(currentScale + 0.2, 3.0);
+        updateZoom();
+    }
+
+    function zoomOut() {
+        currentScale = Math.max(currentScale - 0.2, 0.4);
+        updateZoom();
+    }
+
+    function resetZoom() {
+        currentScale = 1.0;
+        updateZoom();
+    }
+
+    function copyCode() {
+        const pre = document.getElementById('mermaid-source');
+        if (pre) {
+            navigator.clipboard.writeText(pre.textContent).then(() => {
+                alert('Mermaid code copied to clipboard.');
+            });
+        }
+    }
+
+    function exportPng() {
+        const stage = document.getElementById('mermaid-diagram');
+        const svg = stage.querySelector('svg');
+        if (!svg) {
+            alert('No diagram to export.');
+            return;
+        }
+
+        const clone = svg.cloneNode(true);
+        clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        const rect = svg.getBoundingClientRect();
+        const width = rect.width || 800;
+        const height = rect.height || 600;
+
+        const serializer = new XMLSerializer();
+        const svgString = serializer.serializeToString(clone);
+        const svgBlob = new Blob([svgString], {type: 'image/svg+xml;charset=utf-8'});
+        const url = URL.createObjectURL(svgBlob);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width * 2;
+        canvas.height = height * 2;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(2, 2);
+
+        const img = new Image();
+        img.onload = function() {
+            ctx.drawImage(img, 0, 0);
+            URL.revokeObjectURL(url);
+            canvas.toBlob(function(blob) {
+                const link = document.createElement('a');
+                link.download = 'visual-learning.png';
+                link.href = URL.createObjectURL(blob);
+                link.click();
+            });
+        };
+        img.src = url;
+    }
+
+    function exportPdf() {
+        window.print();
+    }
+
+    mermaid.initialize({
+        startOnLoad: false,
+        securityLevel: 'loose',
+        theme: 'dark'
+    });
+
+    const source = document.getElementById('mermaid-source');
+    if (source && source.textContent.trim()) {
+        mermaid.render('mmd', source.textContent.trim()).then(function(result) {
+            document.getElementById('mermaid-diagram').innerHTML = result.svg;
+        }).catch(function(err) {
+            document.getElementById('mermaid-diagram').innerHTML =
+                '<div style="color:#EF4444;">Could not render diagram. The generated Mermaid syntax may be invalid.<br><pre>' + err + '</pre></div>';
+        });
+    }
+</script>
+{% endblock %}

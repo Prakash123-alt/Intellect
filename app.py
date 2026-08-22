@@ -5,7 +5,7 @@ import re
 import time
 import json
 import markdown
-from datetime import datetime
+from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 
@@ -25,12 +25,18 @@ from exam_platform import (
     log_study_session, get_progress_data, detect_weak_topics, get_all_mastery,
     convert_to_notes, save_notes, get_all_notes, get_note,
     save_exam_document, get_exam_documents, extract_any_text,
+    save_knowledge_document, get_knowledge_documents,
     analyze_exam_documents, save_full_prediction, get_predictions, get_prediction,
     generate_practice_test, export_prediction, export_quiz,
-    get_dashboard_data, UPLOAD_DIR
+    get_dashboard_data, _ai_call, UPLOAD_DIR
 )
+from rag import query_knowledge
 from media_notes import (
     process_media_upload, get_all_media_notes, get_media_note
+)
+from youtube_notes import (
+    process_youtube_url, get_all_youtube_notes, get_youtube_note,
+    _format_duration
 )
 
 load_dotenv()
@@ -93,19 +99,118 @@ def dashboard():
 @app.route('/ask', methods=['GET', 'POST'])
 def ask():
     answer = ""
+    raw = ""
     question = ""
+    subject = request.args.get('subject', '')
     elapsed = 0
     if request.method == 'POST':
         question = request.form.get('question', '')
+        subject = request.form.get('subject', '')
+        use_rag = request.form.get('use_rag') == 'on'
         if question.strip():
-            raw, elapsed = ask_groq(question)
+            if use_rag and subject.strip():
+                chunks = query_knowledge(subject.strip(), question, top_k=5)
+                if chunks:
+                    context = '\n\n---\n\n'.join(chunks)
+                    prompt = f"""Answer the question based only on the provided context.
+
+Context:
+{context[:4000]}
+
+Question: {question}
+
+If the answer is not in the context, say: I cannot find the answer in the provided documents."""
+                    raw, elapsed = ask_groq(prompt)
+                else:
+                    raw, elapsed = ask_groq(question, context='No relevant passages found in the knowledge base for this subject.')
+            else:
+                raw, elapsed = ask_groq(question)
             answer = markdown.markdown(raw, extensions=['tables', 'fenced_code'])
-            log_study_session('General', 'Q&A', 2, 'reading')
-    return render_template('ask.html', answer=answer, question=question,
-                         elapsed=round(elapsed, 2), active_page='ask')
+            log_study_session(subject or 'General', 'Q&A', 2, 'reading')
+    documents = get_knowledge_documents(subject if subject else None)
+    return render_template('ask.html', answer=answer, raw=raw, question=question, subject=subject,
+                         documents=documents, elapsed=round(elapsed, 2), active_page='ask')
 
 
-# ─── API endpoint (existing, for Flutter) ────────────────────────────
+ALLOWED_KB_EXTS = ('.pdf', '.docx', '.pptx', '.txt')
+
+
+@app.route('/knowledge/upload', methods=['POST'])
+def knowledge_upload():
+    if 'kb_file' not in request.files:
+        flash('No file selected', 'error')
+        return redirect(url_for('ask'))
+
+    file = request.files['kb_file']
+    if file.filename == '' or not file.filename.lower().endswith(ALLOWED_KB_EXTS):
+        flash('Please upload a PDF, DOCX, PPTX, or TXT file', 'error')
+        return redirect(url_for('ask'))
+
+    subject = request.form.get('subject', '').strip()
+    if not subject:
+        flash('Please enter a subject for this knowledge base', 'error')
+        return redirect(url_for('ask'))
+
+    filename = secure_filename(file.filename)
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    saved_name = f"{timestamp}_{filename}"
+    filepath = os.path.join(UPLOAD_DIR, saved_name)
+    file.save(filepath)
+
+    text, _ = extract_any_text(filepath, filename)
+    if not text.strip():
+        flash('Could not extract text from the file. The file may be empty or image-based.', 'error')
+        return redirect(url_for('ask'))
+
+    try:
+        doc_id = save_knowledge_document(subject, filename.rsplit('.', 1)[-1].lower(), saved_name, filename, text)
+        flash(f'Indexed {filename} ({subject}) into the RAG knowledge base', 'success')
+        return redirect(url_for('ask', subject=subject))
+    except Exception as e:
+        app.logger.error(f'RAG upload failed: {e}', exc_info=True)
+        flash(f'RAG upload failed: {str(e)}', 'error')
+        return redirect(url_for('ask'))
+
+
+# ─── Visual Learning Generator ────────────────────────────────────────
+
+DIAGRAM_TYPES = ('mindmap', 'flowchart', 'concept', 'process')
+
+
+@app.route('/visualize', methods=['GET', 'POST'])
+def visualize():
+    content = request.form.get('content', '') or request.args.get('content', '')
+    diagram_type = request.form.get('diagram_type', 'mindmap') or request.args.get('diagram_type', 'mindmap')
+    if diagram_type not in DIAGRAM_TYPES:
+        diagram_type = 'mindmap'
+    mermaid_code = ''
+    if request.method == 'POST' and content.strip():
+        try:
+            prompt = f"""Convert the following explanation into a {diagram_type} using valid Mermaid syntax.
+Write ONLY the Mermaid code. Do not include any explanation, markdown code fences, or thinking tags.
+Use one node per line with 2-space indentation for child nodes.
+
+Diagram rules:
+- mindmap: start with "mindmap" on its own line, then use "root((Topic))" and indented sub-items.
+- flowchart: use "flowchart TD" and use arrows like "A[Start] --> B[Next]".
+- concept: use "graph TD" with node names and "-->" links.
+- process: use "flowchart LR" with steps linked by arrows.
+
+Explanation:
+{content[:4000]}"""
+            raw = _ai_call(client, MODEL,
+                'You are an expert at generating valid Mermaid diagrams. Return only the Mermaid code, no explanation.',
+                prompt)
+            # Strip thinking tags, code fences and any leading 'mermaid' label
+            raw = re.sub(r'\s*<\|/?think\|>\s*', '', raw)
+            raw = re.sub(r' thinking[\s\S]*? clicking', '', raw)
+            mermaid_code = re.sub(r'```(?:mermaid)?\s*|```', '', raw, flags=re.IGNORECASE).strip()
+            mermaid_code = re.sub(r'^\s*mermaid\s*\n', '', mermaid_code, flags=re.IGNORECASE)
+        except Exception as e:
+            app.logger.error(f'Visualize generation failed: {e}', exc_info=True)
+            flash(f'Could not generate diagram: {str(e)}', 'error')
+    return render_template('visualize.html', content=content, diagram_type=diagram_type,
+                         mermaid_code=mermaid_code, active_page='visualize')
 
 @app.route('/api/ask', methods=['POST'])
 def api_ask():
@@ -565,6 +670,76 @@ def notes_convert_media():
         app.logger.error(f'Media notes conversion error: {e}', exc_info=True)
         flash(f'Error converting media: {str(e)}', 'error')
         return redirect(url_for('notes_page'))
+
+
+# ─── YouTube Video Analyzer ───────────────────────────────────────────
+
+@app.route('/youtube', methods=['GET'])
+def youtube_page():
+    notes = get_all_youtube_notes()
+    view_id = request.args.get('view')
+    selected = get_youtube_note(int(view_id)) if view_id else None
+    if selected:
+        selected['notes_html'] = markdown.markdown(
+            selected.get('notes', '') or '', extensions=['tables', 'fenced_code'])
+        selected['summary_html'] = markdown.markdown(
+            selected.get('summary', '') or '', extensions=['tables', 'fenced_code'])
+        selected['revision_html'] = markdown.markdown(
+            selected.get('revision_notes', '') or '', extensions=['tables', 'fenced_code'])
+        selected['full_data'] = json.loads(selected.get('full_data', '{}') or '{}')
+        selected['duration_formatted'] = _format_duration(selected.get('duration'))
+        for q in selected.get('quiz', []):
+            try:
+                q['options'] = json.loads(q['options']) if q.get('options') else []
+            except Exception:
+                q['options'] = []
+    return render_template('youtube.html', notes=notes, selected=selected, active_page='youtube')
+
+
+@app.route('/youtube/analyze', methods=['POST'])
+def youtube_analyze():
+    url = request.form.get('video_url', '').strip()
+    title = request.form.get('title', '').strip()
+    subject = request.form.get('subject', 'General').strip()
+    if not url:
+        flash('Please enter a YouTube URL', 'error')
+        return redirect(url_for('youtube_page'))
+    if not title:
+        title = 'Untitled YouTube Notes'
+    try:
+        note_id = process_youtube_url(url, title, subject, client, MODEL)
+        flash('YouTube video analyzed successfully', 'success')
+        return redirect(url_for('youtube_page', view=note_id))
+    except Exception as e:
+        app.logger.error(f'YouTube analysis error: {e}', exc_info=True)
+        flash(f'Error analyzing YouTube video: {str(e)}', 'error')
+        return redirect(url_for('youtube_page'))
+
+
+@app.route('/youtube/create-plan', methods=['POST'])
+def youtube_create_plan():
+    note_id = request.form.get('note_id')
+    subject = request.form.get('subject', 'General').strip()
+    note = get_youtube_note(int(note_id)) if note_id else None
+    if not note:
+        flash('Video not found', 'error')
+        return redirect(url_for('youtube_page'))
+    topics = [t.get('topic_name', '') for t in note.get('topics', [])]
+    if not topics:
+        topics = [subject]
+    exam_date = (datetime.now() + timedelta(days=14)).strftime('%Y-%m-%d')
+    try:
+        daily_hours = float(request.form.get('daily_hours', 1))
+    except ValueError:
+        daily_hours = 1.0
+    try:
+        plan_id = create_smart_study_plan(client, MODEL, subject, exam_date, daily_hours, 'topic', [], '\n'.join(topics))
+        flash('Study plan created from YouTube video topics', 'success')
+        return redirect(url_for('study_plan_detail', plan_id=plan_id))
+    except Exception as e:
+        app.logger.error(f'YouTube study plan creation error: {e}', exc_info=True)
+        flash(f'Could not create study plan: {str(e)}', 'error')
+        return redirect(url_for('youtube_page', view=note_id))
 
 
 # ─── Exam Prediction Assistant ───────────────────────────────────────
