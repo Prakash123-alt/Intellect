@@ -38,6 +38,7 @@ from youtube_notes import (
     process_youtube_url, get_all_youtube_notes, get_youtube_note,
     _format_duration
 )
+from api import register_api_routes
 
 load_dotenv()
 
@@ -47,7 +48,7 @@ app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100 MB max upload
 
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 MODEL = "openai/gpt-oss-20b"
-SYSTEM_PROMPT = "You are a helpful assistant. Give clear, concise answers. Do not include any thinking or reasoning tags."
+SYSTEM_PROMPT = "You are a helpful assistant. Give clear, concise answers using well-structured Markdown formatting. Use headings (##, ###), bullet points, numbered lists, bold for key terms, and code blocks where appropriate. Do not include any thinking or reasoning tags."
 
 # Initialize databases
 init_db()
@@ -871,5 +872,7 @@ def process_events():
     return jsonify({'processed': count})
 
 
+register_api_routes(app, client, MODEL)
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)

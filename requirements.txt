@@ -1,4 +1,5 @@
 Flask==2.3.3
+gunicorn
 groq
 python-dotenv==1.0.1
 markdown
