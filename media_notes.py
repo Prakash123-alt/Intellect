@@ -6,7 +6,12 @@ import subprocess
 from datetime import datetime
 from werkzeug.utils import secure_filename
 
-from imageio_ffmpeg import get_ffmpeg_exe
+try:
+    from imageio_ffmpeg import get_ffmpeg_exe
+except ImportError:
+    def get_ffmpeg_exe():
+        return None
+
 from exam_platform import _get_conn, _ai_call, _parse_json_response, convert_to_notes, UPLOAD_DIR
 
 logger = logging.getLogger('media_notes')

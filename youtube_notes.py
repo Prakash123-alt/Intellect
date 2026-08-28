@@ -6,10 +6,19 @@ import logging
 import subprocess
 from datetime import datetime
 
-import yt_dlp
-from youtube_transcript_api import YouTubeTranscriptApi
+try:
+    import yt_dlp
+    from youtube_transcript_api import YouTubeTranscriptApi
+except ImportError:
+    yt_dlp = None
+    YouTubeTranscriptApi = None
 
-from imageio_ffmpeg import get_ffmpeg_exe
+try:
+    from imageio_ffmpeg import get_ffmpeg_exe
+except ImportError:
+    def get_ffmpeg_exe():
+        return None
+
 from exam_platform import _get_conn, _ai_call, convert_to_notes, UPLOAD_DIR
 from media_notes import _transcribe_mp3, _extract_audio_to_mp3, _generate_media_analysis, _media_duration
 
