@@ -1,0 +1,14 @@
+runtime: python311
+
+entrypoint: gunicorn -b :$PORT app:app --timeout 120 --workers 2
+
+env_variables:
+  GROQ_API_KEY: "your-groq-api-key-here"
+  SECRET_KEY: "your-secret-key-here"
+
+handlers:
+  - url: /static
+    static_dir: static
+
+  - url: /.*
+    script: auto

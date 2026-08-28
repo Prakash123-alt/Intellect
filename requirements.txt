@@ -13,3 +13,5 @@ reportlab
 imageio-ffmpeg
 yt-dlp
 youtube-transcript-api
+pytesseract
+Pillow

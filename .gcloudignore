@@ -1,0 +1,29 @@
+# This file specifies files that are *not* uploaded to Google Cloud Platform
+.gcloudignore
+.git
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv
+venv/
+ENV/
+env/
+
+# Local uploads/data (you may want to keep database separately)
+uploads/
+*.db
+*.sqlite3
+*.sqlite
+
+# Flutter
+intellect_app/

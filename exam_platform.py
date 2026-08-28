@@ -665,6 +665,41 @@ def extract_pdf_text(filepath):
     except Exception as e:
         logger.error(f"PyPDF2 extraction failed: {e}")
 
+    # OCR fallback for scanned/image-based PDFs
+    try:
+        import pytesseract
+        from PIL import Image
+        import pymupdf
+
+        # Try common Windows install paths
+        for tesseract_path in [
+            r'C:\Program Files\Tesseract-OCR\tesseract.exe',
+            r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe',
+        ]:
+            if os.path.exists(tesseract_path):
+                pytesseract.pytesseract.tesseract_cmd = tesseract_path
+                break
+
+        page_texts = []
+        with pymupdf.open(filepath) as doc:
+            page_count = len(doc)
+            for page_num, page in enumerate(doc, 1):
+                pix = page.get_pixmap(dpi=200)
+                img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                ocr_text = pytesseract.image_to_string(img)
+                page_texts.append(ocr_text.strip())
+                logger.info(f"OCR page {page_num}/{page_count} done")
+        extracted = "\n\n".join(page_texts).strip()
+        if extracted:
+            logger.info(f"OCR extracted {len(extracted)} chars from {page_count} pages")
+            return extracted, page_count, page_texts
+    except ImportError:
+        logger.warning("OCR libraries not installed (pytesseract, Pillow). Skipping OCR fallback.")
+    except pytesseract.TesseractNotFoundError:
+        logger.error("Tesseract OCR engine not found. Install it from https://github.com/UB-Mannheim/tesseract/wiki")
+    except Exception as e:
+        logger.error(f"OCR extraction failed: {e}")
+
     return "", 0, []
 
 
