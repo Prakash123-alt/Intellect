@@ -39,6 +39,7 @@ from youtube_notes import (
     _format_duration
 )
 from api import register_api_routes
+from question_paper import register_question_paper_routes
 
 load_dotenv()
 
@@ -177,6 +178,307 @@ def knowledge_upload():
 
 DIAGRAM_TYPES = ('mindmap', 'flowchart', 'concept', 'process')
 
+_DIAGRAM_PROMPTS = {
+    'mindmap': """Create a Mermaid MINDMAP from the text below.
+
+RULES:
+- First line must be exactly: mindmap
+- Second line must be: root((Main Topic))
+- Child nodes use 2-space indentation, grandchildren use 4-space, etc.
+- Child nodes are plain text, NO brackets, NO parentheses, NO special chars.
+- Max 6 words per node. Summarize, do not copy long sentences.
+- Group into 3-6 main branches, each with 2-4 sub-items.
+
+EXAMPLE:
+mindmap
+  root((Healthy Living))
+    Exercise
+      Cardio workouts
+      Strength training
+    Nutrition
+      Balanced diet
+      Hydration
+
+TEXT:
+{content}""",
+
+    'flowchart': """Create a Mermaid FLOWCHART from the text below.
+
+RULES:
+- First line must be exactly: flowchart TD
+- Use node IDs like A, B, C1, D2. Connect with -->
+- Node text goes in square brackets: A[My Label]
+- NEVER use parentheses, quotes, or special chars inside brackets.
+- Max 6 words per node label.
+- Create a TREE structure: one root node connecting to 3-5 category nodes, each category connecting to 2-4 child nodes.
+- NEVER create a single long chain of nodes.
+
+EXAMPLE:
+flowchart TD
+    A[Software Development] --> B[Frontend]
+    A --> C[Backend]
+    A --> D[DevOps]
+    B --> B1[HTML and CSS]
+    B --> B2[JavaScript]
+    C --> C1[APIs]
+    C --> C2[Databases]
+    D --> D1[CI CD Pipeline]
+    D --> D2[Cloud Hosting]
+
+TEXT:
+{content}""",
+
+    'concept': """Create a Mermaid CONCEPT MAP from the text below.
+
+RULES:
+- First line must be exactly: graph TD
+- Use node IDs like A, B, C1, D2. Connect with --- or -->
+- Add edge labels with |label text| like: A -->|relates to| B
+- Node text goes in square brackets: A[My Label]
+- NEVER use parentheses, quotes, or special chars inside brackets or labels.
+- Max 6 words per node label, max 3 words per edge label.
+- Create a web of connections, not a single chain. Central topic connects to 4-6 concepts.
+
+EXAMPLE:
+graph TD
+    A[Machine Learning] -->|uses| B[Training Data]
+    A -->|produces| C[Models]
+    A -->|type| D[Supervised]
+    A -->|type| E[Unsupervised]
+    B -->|feeds| C
+    D -->|needs| B
+    E -->|needs| B
+
+TEXT:
+{content}""",
+
+    'process': """Summarize the text below into a step-by-step Mermaid FLOWCHART.
+
+RULES:
+- First line must be exactly: flowchart TD
+- Use node IDs like A, B, C, D. Connect with -->
+- Node text goes in square brackets: A[Step Name]
+- NEVER use parentheses, quotes, or special chars inside brackets.
+- Max 5 words per node label.
+- Identify the main topics or steps and arrange them as a TREE.
+- One root node at top, branching into 3-5 category nodes.
+- Each category can have 2-3 child nodes.
+- Do NOT create a single long chain. Branch out.
+
+EXAMPLE:
+flowchart TD
+    A[Fitness App Features] --> B[User Experience]
+    A --> C[Tracking]
+    A --> D[Social Features]
+    A --> E[Content]
+    B --> B1[Personalization]
+    B --> B2[Goal Setting]
+    C --> C1[Activity Metrics]
+    C --> C2[Diet Plans]
+    D --> D1[Social Media]
+    D --> D2[Gamification]
+    E --> E1[Video Streaming]
+    E --> E2[Virtual Coaching]
+
+TEXT:
+{content}"""
+}
+
+
+def _clean_mermaid(raw_text):
+    """Strip AI wrapper text and extract only valid Mermaid code."""
+    raw = re.sub(r'<\|/?think\|>', '', raw_text)
+    raw = re.sub(r'<think>[\s\S]*?</think>', '', raw)
+    raw = re.sub(r'<think>[\s\S]*$', '', raw)
+    raw = re.sub(r'```(?:mermaid)?\s*|```', '', raw, flags=re.IGNORECASE).strip()
+    raw = re.sub(r'^\s*mermaid\s*\n', '', raw, flags=re.IGNORECASE)
+    # Remove any non-mermaid preamble text before the actual diagram
+    for kw in ('mindmap', 'flowchart', 'graph'):
+        idx = raw.lower().find(kw)
+        if idx > 0:
+            raw = raw[idx:]
+            break
+    return raw.strip()
+
+
+def _sanitize_mermaid(code):
+    """Fix common Mermaid syntax issues that cause parse errors."""
+    lines = code.split('\n')
+    cleaned = []
+    for line in lines:
+        if not line.strip():
+            continue
+        # Fix bracket content: remove (), "", '', #, & inside [...]
+        def _fix_brackets(m):
+            txt = m.group(1)
+            txt = txt.replace('(', ' - ').replace(')', '').replace('"', '').replace("'", '')
+            txt = txt.replace('#', '').replace('&', 'and').replace(';', ' ')
+            txt = re.sub(r'\s+', ' ', txt).strip()
+            if len(txt) > 50:
+                txt = txt[:47] + '...'
+            return '[' + txt + ']'
+        line = re.sub(r'\[([^\]]*)\]', _fix_brackets, line)
+        # Fix edge labels: remove special chars inside |...|
+        def _fix_edge(m):
+            txt = m.group(1).replace('(', '').replace(')', '').replace('"', '').replace("'", '')
+            return '|' + txt.strip() + '|'
+        line = re.sub(r'\|([^|]*)\|', _fix_edge, line)
+        # For mindmap: sanitize indented plain-text nodes
+        stripped = line.lstrip()
+        leading = line[:len(line) - len(stripped)]
+        if stripped and not any(stripped.startswith(k) for k in
+                               ['mindmap', 'flowchart', 'graph', 'root', 'subgraph', 'end',
+                                '-->', '---', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I',
+                                'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
+                                'Phase', 'class', 'style', '%%']):
+            # This might be a mindmap text node — clean it
+            stripped = stripped.replace('(', ' - ').replace(')', '').replace('"', '').replace("'", '')
+            stripped = stripped.replace('#', '').replace('&', 'and')
+            line = leading + stripped
+        cleaned.append(line)
+    return '\n'.join(cleaned)
+
+
+def _validate_mermaid(code):
+    """Basic validation: check brackets are balanced and structure looks right."""
+    if not code.strip():
+        return False
+    first_line = code.strip().split('\n')[0].strip().lower()
+    if not any(first_line.startswith(k) for k in ['mindmap', 'flowchart', 'graph']):
+        return False
+    # Check balanced brackets
+    for open_c, close_c in [('[', ']'), ('{', '}')]:
+        if code.count(open_c) != code.count(close_c):
+            return False
+    # Check subgraph/end balance
+    subs = len(re.findall(r'^\s*subgraph\b', code, re.MULTILINE))
+    ends = len(re.findall(r'^\s*end\s*$', code, re.MULTILINE))
+    if subs != ends:
+        return False
+    # Must have at least a few lines
+    real_lines = [l for l in code.strip().split('\n') if l.strip() and not l.strip().startswith('%%')]
+    return len(real_lines) >= 3
+
+
+def _extract_key_points(content):
+    """Smart extraction of key points from content for fallback diagrams."""
+    # Try to find numbered items first (e.g. "1. Something", "2. Another")
+    numbered = re.findall(r'(?:^|\n)\s*\d+[\.\)]\s*([^\n]+)', content)
+    if len(numbered) >= 3:
+        items = []
+        for item in numbered[:15]:
+            label = ' '.join(item.split()[:6])
+            label = re.sub(r'[^a-zA-Z0-9 ,\-]', '', label).strip()
+            if label:
+                items.append(label)
+        if items:
+            return items
+    # Try bullet points
+    bullets = re.findall(r'(?:^|\n)\s*[-*]\s+([^\n]+)', content)
+    if len(bullets) >= 3:
+        items = []
+        for item in bullets[:15]:
+            label = ' '.join(item.split()[:6])
+            label = re.sub(r'[^a-zA-Z0-9 ,\-]', '', label).strip()
+            if label:
+                items.append(label)
+        if items:
+            return items
+    # Try lines that look like headings (short, capitalized)
+    lines_raw = content.split('\n')
+    headings = [l.strip() for l in lines_raw if 3 < len(l.strip()) < 60 and l.strip()[0].isupper()]
+    if len(headings) >= 3:
+        items = []
+        for h in headings[:15]:
+            label = ' '.join(h.split()[:6])
+            label = re.sub(r'[^a-zA-Z0-9 ,\-]', '', label).strip()
+            if label:
+                items.append(label)
+        if items:
+            return items
+    # Last resort: split by sentences, skip very short/long ones
+    sentences = re.split(r'[.!?]+', content)
+    items = []
+    for s in sentences:
+        s = s.strip()
+        if 10 < len(s) < 200:
+            label = ' '.join(s.split()[:6])
+            label = re.sub(r'[^a-zA-Z0-9 ,\-]', '', label).strip()
+            if label and label not in items:
+                items.append(label)
+        if len(items) >= 12:
+            break
+    return items if items else ['Key Point 1', 'Key Point 2', 'Key Point 3']
+
+
+def _extract_topic(content):
+    """Get a short topic label from the first meaningful line of content."""
+    for line in content.split('\n'):
+        line = line.strip()
+        if len(line) > 5:
+            label = ' '.join(line.split()[:5])
+            label = re.sub(r'[^a-zA-Z0-9 ,\-]', '', label).strip()
+            if label:
+                return label
+    return 'Topic Overview'
+
+
+def _build_fallback_diagram(content, diagram_type):
+    """Extract key points from content and build a simple valid diagram."""
+    items = _extract_key_points(content)
+    topic = _extract_topic(content)
+
+    if diagram_type == 'mindmap':
+        lines = ['mindmap', f'  root(({topic}))']
+        # Group items into branches of 3
+        for i in range(0, min(len(items), 12), 3):
+            branch = items[i]
+            lines.append(f'    {branch}')
+            for sub in items[i+1:i+3]:
+                lines.append(f'      {sub}')
+        return '\n'.join(lines)
+
+    elif diagram_type == 'flowchart':
+        lines = ['flowchart TD', f'    A[{topic}]']
+        for i, it in enumerate(items[:8]):
+            nid = f'N{i+1}'
+            lines.append(f'    A --> {nid}[{it}]')
+        return '\n'.join(lines)
+
+    elif diagram_type == 'concept':
+        lines = ['graph TD', f'    A[{topic}]']
+        for i, it in enumerate(items[:8]):
+            nid = f'N{i+1}'
+            lines.append(f'    A -->|includes| {nid}[{it}]')
+        # Add some cross-links between adjacent items
+        for i in range(0, min(len(items), 7), 2):
+            lines.append(f'    N{i+1} -.->|related| N{i+2}')
+        return '\n'.join(lines)
+
+    else:  # process
+        lines = ['flowchart TD']
+        # Group into phases of 3-4
+        phase_num = 0
+        phase_ids = []
+        for i in range(0, min(len(items), 12), 3):
+            phase_num += 1
+            pid = f'P{phase_num}'
+            chunk = items[i:i+3]
+            lines.append(f'    subgraph {pid}[Phase {phase_num}]')
+            prev_nid = None
+            for j, it in enumerate(chunk):
+                nid = f'S{phase_num}_{j+1}'
+                lines.append(f'        {nid}[{it}]')
+                if prev_nid:
+                    lines.append(f'        {prev_nid} --> {nid}')
+                prev_nid = nid
+            lines.append('    end')
+            phase_ids.append(pid)
+        # Connect phases
+        for k in range(len(phase_ids) - 1):
+            lines.append(f'    {phase_ids[k]} --> {phase_ids[k+1]}')
+        return '\n'.join(lines)
+
 
 @app.route('/visualize', methods=['GET', 'POST'])
 def visualize():
@@ -186,30 +488,30 @@ def visualize():
         diagram_type = 'mindmap'
     mermaid_code = ''
     if request.method == 'POST' and content.strip():
-        try:
-            prompt = f"""Convert the following explanation into a {diagram_type} using valid Mermaid syntax.
-Write ONLY the Mermaid code. Do not include any explanation, markdown code fences, or thinking tags.
-Use one node per line with 2-space indentation for child nodes.
-
-Diagram rules:
-- mindmap: start with "mindmap" on its own line, then use "root((Topic))" and indented sub-items.
-- flowchart: use "flowchart TD" and use arrows like "A[Start] --> B[Next]".
-- concept: use "graph TD" with node names and "-->" links.
-- process: use "flowchart LR" with steps linked by arrows.
-
-Explanation:
-{content[:4000]}"""
-            raw = _ai_call(client, MODEL,
-                'You are an expert at generating valid Mermaid diagrams. Return only the Mermaid code, no explanation.',
-                prompt)
-            # Strip thinking tags, code fences and any leading 'mermaid' label
-            raw = re.sub(r'\s*<\|/?think\|>\s*', '', raw)
-            raw = re.sub(r' thinking[\s\S]*? clicking', '', raw)
-            mermaid_code = re.sub(r'```(?:mermaid)?\s*|```', '', raw, flags=re.IGNORECASE).strip()
-            mermaid_code = re.sub(r'^\s*mermaid\s*\n', '', mermaid_code, flags=re.IGNORECASE)
-        except Exception as e:
-            app.logger.error(f'Visualize generation failed: {e}', exc_info=True)
-            flash(f'Could not generate diagram: {str(e)}', 'error')
+        prompt_template = _DIAGRAM_PROMPTS[diagram_type]
+        prompt = prompt_template.format(content=content[:4000])
+        sys_msg = ('You are an expert Mermaid diagram generator. '
+                   'Return ONLY valid Mermaid code. No explanation, no markdown fences, no thinking tags. '
+                   'Use only plain alphanumeric text inside node labels. '
+                   'Never use parentheses, quotes, or special characters inside node text.')
+        # Try up to 2 times
+        for attempt in range(2):
+            try:
+                raw = _ai_call(client, MODEL, sys_msg, prompt)
+                code = _clean_mermaid(raw)
+                code = _sanitize_mermaid(code)
+                if _validate_mermaid(code):
+                    mermaid_code = code
+                    break
+                elif attempt == 0:
+                    app.logger.warning(f'Visualize attempt 1 failed validation, retrying...')
+                    prompt = f"The previous Mermaid code was invalid. Please try again.\n\n{prompt}"
+            except Exception as e:
+                app.logger.error(f'Visualize attempt {attempt+1} failed: {e}', exc_info=True)
+        # Fallback if both attempts failed
+        if not mermaid_code:
+            app.logger.warning('Using fallback diagram generation')
+            mermaid_code = _build_fallback_diagram(content, diagram_type)
     return render_template('visualize.html', content=content, diagram_type=diagram_type,
                          mermaid_code=mermaid_code, active_page='visualize')
 
@@ -873,6 +1175,7 @@ def process_events():
 
 
 register_api_routes(app, client, MODEL)
+register_question_paper_routes(app, client, MODEL)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

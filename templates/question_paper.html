@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}AI Question Paper Generator - Intellect{% endblock %}
+
+{% block page_title %}AI Question Paper Generator{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="alert alert-info">
+    Upload previous year papers, optionally add notes/syllabus, describe the pattern, then choose a generation mode.
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-header"><strong>Step 1: Upload Previous Year Papers</strong></div>
+        <div class="card-body">
+          <form method="POST" action="{{ url_for('question_paper_upload') }}" enctype="multipart/form-data">
+            <div class="mb-3">
+              <label class="form-label">Subject</label>
+              <input type="text" name="subject" class="form-control" placeholder="e.g. Machine Learning" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Previous papers (PDF, DOCX, TXT)</label>
+              <input type="file" name="papers" class="form-control" multiple accept=".pdf,.docx,.txt" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Paper name(s), one per file (e.g. 2022 Mid Exam)</label>
+              <input type="text" name="paper_name" class="form-control" placeholder="2022 Mid Exam">
+              <small class="text-muted">If uploading multiple files, separate names with commas in order.</small>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Upload & Extract</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-header"><strong>Step 2: Optional Resources</strong></div>
+        <div class="card-body">
+          <form method="POST" action="{{ url_for('question_paper_resources') }}" enctype="multipart/form-data">
+            <div class="mb-3">
+              <label class="form-label">Syllabus / Notes / Textbooks / Question Banks</label>
+              <input type="file" name="resources" class="form-control" multiple accept=".pdf,.docx,.txt">
+            </div>
+            <button type="submit" class="btn btn-secondary w-100">Save Resources</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="card shadow-sm mt-4">
+        <div class="card-header"><strong>Step 3: Exam Pattern</strong></div>
+        <div class="card-body">
+          <form method="POST" action="{{ url_for('question_paper_generate') }}">
+            <div class="mb-3">
+              <textarea name="pattern" class="form-control" rows="5" placeholder="Section A: 10 x 1 Mark...">{{ pattern }}</textarea>
+            </div>
+            <div class="d-grid gap-2">
+              <button type="submit" name="mode" value="similar" class="btn btn-outline-primary">1. Similar Model Paper</button>
+              <button type="submit" name="mode" value="practice" class="btn btn-outline-success">2. Practice Paper</button>
+              <button type="submit" name="mode" value="predicted" class="btn btn-outline-danger">3. Predicted Exam Paper</button>
+            </div>
+          </form>
+          <form method="POST" action="{{ url_for('question_paper_analyze') }}" class="mt-3">
+            <button type="submit" class="btn btn-dark w-100">Analyze & Predict</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if papers %}
+  <div class="card shadow-sm mt-4">
+    <div class="card-header"><strong>Uploaded Previous Papers</strong></div>
+    <div class="card-body">
+      <table class="table table-sm">
+        <thead><tr><th>Name</th><th>Year</th><th>Subject</th><th>Uploaded</th></tr></thead>
+        <tbody>
+          {% for p in papers %}
+          <tr><td>{{ p.name }}</td><td>{{ p.year or '-' }}</td><td>{{ p.subject or '-' }}</td><td>{{ p.uploaded_at }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if predictions %}
+  <div class="card shadow-sm mt-4">
+    <div class="card-header"><strong>Prediction Scores (Top Concepts)</strong></div>
+    <div class="card-body">
+      <table class="table table-sm table-striped">
+        <thead><tr><th>Concept</th><th>Frequency</th><th>Trend</th><th>Semantic</th><th>Combined</th></tr></thead>
+        <tbody>
+          {% for pred in predictions[:20] %}
+          <tr>
+            <td>{{ pred.concept }}</td>
+            <td>{{ "%0.1f"|format(pred.frequency_score) }}%</td>
+            <td>{{ "%0.1f"|format(pred.trend_score) }}%</td>
+            <td>{{ "%0.1f"|format(pred.semantic_score) }}%</td>
+            <td><strong>{{ "%0.1f"|format(pred.combined_score) }}%</strong></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if generated %}
+  <div class="card shadow-sm mt-4">
+    <div class="card-header"><strong>Generated Papers</strong></div>
+    <div class="card-body">
+      <table class="table table-sm">
+        <thead><tr><th>Mode</th><th>Pattern</th><th>Created</th><th>View</th></tr></thead>
+        <tbody>
+          {% for g in generated %}
+          <tr>
+            <td>{{ g.mode.title() }}</td>
+            <td>{{ g.pattern[:80] }}</td>
+            <td>{{ g.created_at }}</td>
+            <td><a href="{{ url_for('question_paper_result', paper_id=g.id) }}" class="btn btn-sm btn-primary">Open</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

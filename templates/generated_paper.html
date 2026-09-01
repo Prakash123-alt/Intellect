@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Generated Paper - Intellect{% endblock %}
+
+{% block page_title %}Generated Exam Paper{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h3 class="mb-3">{{ paper.mode.title() }} Paper</h3>
+  <p class="text-muted">Generated on {{ paper.created_at }}</p>
+
+  <div class="card shadow-sm mb-4">
+    <div class="card-header"><strong>Exam Pattern</strong></div>
+    <div class="card-body">
+      <pre class="mb-0" style="white-space: pre-wrap;">{{ paper.pattern or 'Default pattern' }}</pre>
+    </div>
+  </div>
+
+  {% for section in paper.questions %}
+  <div class="card shadow-sm mb-4">
+    <div class="card-header"><h5 class="mb-0">Section {{ section.name }}</h5></div>
+    <div class="card-body">
+      <table class="table table-bordered">
+        <thead>
+          <tr><th>#</th><th>Question</th><th>Marks</th><th>Confidence</th></tr>
+        </thead>
+        <tbody>
+          {% for q in section.questions %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ q.text }}</td>
+            <td>{{ q.marks }}</td>
+            <td>
+              {% if q.confidence is not none %}
+                <span class="badge bg-{% if q.confidence >= 80 %}success{% elif q.confidence >= 50 %}warning{% else %}secondary{% endif %}">
+                  {{ "%0.0f"|format(q.confidence) }}%
+                </span>
+              {% else %}
+                -
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endfor %}
+
+  {% if paper.answer_key %}
+  <div class="card shadow-sm mb-4">
+    <div class="card-header"><strong>Answer Key / Explanations</strong></div>
+    <div class="card-body">
+      <ol>
+        {% for a in paper.answer_key %}
+        <li>{{ a.answer }}</li>
+        {% endfor %}
+      </ol>
+    </div>
+  </div>
+  {% endif %}
+
+  <a href="{{ url_for('question_paper_dashboard') }}" class="btn btn-primary">Back to Generator</a>
+  <a href="{{ url_for('question_paper_dashboard') }}" class="btn btn-success" onclick="window.print()">Print / Save as PDF</a>
+</div>
+{% endblock %}
